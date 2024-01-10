@@ -4,10 +4,14 @@ version = "0.1.0"
 description = ""
 authors = ["Jicheng Zhi <jzhi0004@student.monash.edu>"]
 readme = "README.md"
+packages = [
+    { include = "opcuax"},
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
 asyncua = "^1.0.6"
+pydantic = "^2.5.3"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -17,6 +21,9 @@ black = "^23.12.1"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+
+[tool.poetry.scripts]
+start = "opcuax:run"
 
 [build-system]
 requires = ["poetry-core"]
