@@ -1,7 +1,6 @@
 import asyncio
 import tomllib
 from pathlib import Path
-from typing import Tuple
 
 from asyncua import Node, Server, ua
 
@@ -9,7 +8,7 @@ from opcuax.builder import TypeBuilder
 from opcuax.config import parse_config
 
 
-async def init_server() -> tuple[Server, int]:
+async def init_server() -> Server:
     server = Server()
     await server.init()
 
@@ -22,8 +21,8 @@ async def init_server() -> tuple[Server, int]:
             ua.SecurityPolicyType.Basic256Sha256_Sign,
         ]
     )
-    ns: int = await server.register_namespace("http://msm.com/server")
-    return server, ns
+    await server.register_namespace("http://msm.com/server")
+    return server
 
 
 class ObjectCreator:
@@ -44,7 +43,7 @@ async def main():
 
     template = parse_config(config)
 
-    server, ns = await init_server()
+    server = await init_server()
     type_builder = TypeBuilder(server)
     types = await type_builder.parse_types(template.types, template.base_fields)
     obj_creator = ObjectCreator(server)

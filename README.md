@@ -31,13 +31,31 @@ heartbeat = 0
 status = "offline"
 ```
 
+This is equivalent to the Python code below:
+
+```python
+class Base:
+    heartbeat = 0
+    status = "offline"
+
+
+class Printer(Base):
+    pass
+```
+
 `Printer.Control` contains fields for a nested field named `Control`.
+If you do not have nested object fields, just use `Printer`.
 
 ```toml
 [Printer.Control]
 PartRemoved = false
 BedCleaned = false
 File = "Unknown"
+
+[Arm]
+X = 0.0
+Y = 0.0
+Z = 0.0
 ```
 
 This is equivalent to the Python code below:
@@ -59,6 +77,12 @@ class Printer:
 [instances.numbers]
 Printer = 3
 ```
+
+## Pitfalls
+
+Please use `0.0` for float numbers, `0` will be parsed as int.
+
+Namespace indices of object nodes starts from `10`.
 
 ## Contribute
 
