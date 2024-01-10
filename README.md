@@ -2,10 +2,9 @@
 
 ## Build
 
-Install dependencies by poetry
+[Install poetry](https://python-poetry.org/docs/) and install dependencies
 
 ```shell
-pip install poetry
 poetry install
 ```
 
@@ -93,6 +92,7 @@ Push the branch and submit a pull request.
 
 ## Future
 
+* Backup and restore data after server restarted
 * Move endpoint and server name to `.env` file
 * Use Pydantic classes
   as [object node declaration](https://github.com/monash-automation/mes-printing-server/blob/main/src/opcuax/objects.py)
