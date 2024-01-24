@@ -2,38 +2,38 @@ import asyncio
 import tomllib
 from pathlib import Path
 
-from asyncua import Node, Server, ua
+from asyncua import Server, ua
+from asyncua.common.instantiate_util import instantiate
 
-from opcuax.builder import TypeBuilder
 from opcuax.config import parse_config
+from opcuax.custom_types import create_object_types
 
 
-async def init_server() -> Server:
-    server = Server()
-    await server.init()
+class OpcuaServer(Server):
+    index: int | None = None
+    namespace: str = "http://monashautomation.com/server"
+    server_name: str = "Monash Automation OPC UA Server"
 
-    server.set_endpoint("opc.tcp://localhost:4840")
-    server.set_server_name("MSM OPCUA Server")
-    server.set_security_policy(
-        [
-            ua.SecurityPolicyType.NoSecurity,
-            ua.SecurityPolicyType.Basic256Sha256_SignAndEncrypt,
-            ua.SecurityPolicyType.Basic256Sha256_Sign,
-        ]
-    )
-    await server.register_namespace("http://msm.com/server")
-    return server
+    def __init__(self, endpoint: str = "opc.tcp://localhost:4840"):
+        super().__init__()
+        self.set_endpoint(endpoint)
+        self.set_server_name(self.server_name)
+        self.set_security_policy(
+            [
+                ua.SecurityPolicyType.NoSecurity,
+                ua.SecurityPolicyType.Basic256Sha256_SignAndEncrypt,
+                ua.SecurityPolicyType.Basic256Sha256_Sign,
+            ]
+        )
 
+    async def __aenter__(self):
+        await self.init()
+        self.index = await self.register_namespace(self.namespace)
+        await super().__aenter__()
+        return self
 
-class ObjectCreator:
-    def __init__(self, server: Server):
-        self.server = server
-        self.next_ns = server.get_root_node().nodeid.NamespaceIndex + 10
-
-    async def create(self, tp: Node, name: str):
-        obj = await self.server.nodes.objects.add_object(self.next_ns, name, tp.nodeid)
-        self.next_ns += 1
-        return obj
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await super().__aexit__(exc_type, exc_val, exc_tb)
 
 
 async def main():
@@ -43,22 +43,20 @@ async def main():
 
     template = parse_config(config)
 
-    server = await init_server()
-    type_builder = TypeBuilder(server)
-    types = await type_builder.parse_types(template.types, template.base_fields)
-    obj_creator = ObjectCreator(server)
+    async with OpcuaServer() as server:
+        obj_types = await create_object_types(
+            server.nodes.base_object_type, template.types, template.base_fields
+        )
 
-    for type_name, number in template.instance_numbers.items():
-        if type_name not in types:
-            print(f"Cannot find type definition of {type_name}, skip")
-            continue
-        for i in range(number):
-            await obj_creator.create(types[type_name], f"{type_name}{i+1}")
-
-    async with server:
+        for type_name, number in template.instance_numbers.items():
+            if type_name not in obj_types:
+                print(f"Cannot find type definition of {type_name}, skip")
+                continue
+            for i in range(number):
+                await instantiate(
+                    server.nodes.objects,
+                    obj_types[type_name],
+                    bname=f"{type_name}{i+1}",
+                )
         while True:
             await asyncio.sleep(0.1)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

@@ -11,31 +11,24 @@ message = ""
 progId = 0
 start = false
 
-[Printer.Control]
-PartRemoved = false
-BedCleaned = false
-File = "Unknown"
-JogX = 0.0
-JogY = 0.0
-JogZ = 0.0
-JogSpeed = 0.0
-Feedrate = 0.0
-Extrude = 0.0
+[Printer]
+State = "N/A"
+BedActualTemperature = 0.0
+NozzleActualTemperature = 0.0
+BedTargetTemperature = 0.0
+NozzleTargetTemperature = 0.0
 
-[Printer.Data]
-Read = false
-End = false
-APIResp = "unknown"
-tNozTarget = 0.0
-tNozTOffset = 0.0
-tBedTarget = 0.0
-tBedOffset = 0.0
-JobTimeEst = 0.0
-FilaLenEst = 0.0
-JobFile = "Unknown"
-JobProgress = 0.0
-JobTime = 0.0
-JobTimeLeft = 0.0
+[Printer.LatestJob]
+File = "N/A"
+Progress = 0.0
+TimeUsed = 0.0
+TimeLeft = 0.0
+TimeLeftApprox = 0.0
+
+[Printer.Head]
+X = 0.0
+Y = 0.0
+Z = 0.0
 
 [Gripper.Control]
 GripperControl = false

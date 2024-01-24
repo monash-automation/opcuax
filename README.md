@@ -18,7 +18,7 @@ Connect to `opc.tcp://localhost:4840` with your OPC UA client.
 
 ![example.png](example.png)
 
-## Config
+## Objects
 
 The [objects.toml](./objects.toml) contains metadata for object nodes.
 I chose [TOML](https://toml.io/en/) because it is more human friendly than YAML and JSON.
@@ -43,19 +43,17 @@ class Printer(Base):
     pass
 ```
 
-`Printer.Control` contains fields for a nested field named `Control`.
+`Printer.Control` contains fields for a nested object named `Control`.
 If you do not have nested object fields, just use `Printer`.
 
 ```toml
+[Printer]
+State = "Error"
+
 [Printer.Control]
 PartRemoved = false
 BedCleaned = false
 File = "Unknown"
-
-[Arm]
-X = 0.0
-Y = 0.0
-Z = 0.0
 ```
 
 This is equivalent to the Python code below:
@@ -68,10 +66,11 @@ class PrinterControl:
 
 
 class Printer:
+    State = "Error"
     Control = PrinterControl()
 ```
 
-`instance.numbers` contains number of instances you want to create for each class.
+`instance.numbers` contains number of instances you want to create for each object type.
 
 ```toml
 [instances.numbers]
@@ -105,6 +104,12 @@ pre-commit install
 Code and commit.
 
 Push the branch and submit a pull request.
+
+## Grafana Monitor Dashboard
+
+```shell
+docker run --rm --name=mes-grafana -p 3080:3000 -v grafana:/var/lib/grafana -e "GF_INSTALL_PLUGINS=grafana-clock-panel, grafana-simple-json-datasource, grafana-mqtt-datasource" grafana/grafana-enterprise
+```
 
 ## Resources
 

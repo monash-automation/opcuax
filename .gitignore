@@ -322,3 +322,6 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# Grafana Docker volume
+grafana/
