@@ -83,6 +83,74 @@ Please use `0.0` for float numbers, `0` will be parsed as int.
 
 Namespace indices of object nodes starts from `10`.
 
+## Client
+
+Given the object type below:
+
+```toml
+[Printer.LatestJob]
+Progress = 0.0
+```
+
+### asyncua.Client
+
+To get value of field `Progress`, we can use a client to
+get the target node by browse names (`bname`)
+
+```python
+from asyncua import Client, ua
+
+
+async def main():
+    async with Client(url="opc.tcp://localhost:4840") as client:
+        root = client.get_objects_node()
+
+        # traverse from root
+        printer = await root.get_child("Printer1")
+        job = await printer.get_child("LatestJob")
+        progress = await job.get_child("Progress")
+
+        # traverse by path
+        assert progress == await root.get_child("Printer1/LatestJob/Progress")
+
+        # read value
+        cur_progress = await progress.get_value()
+        print(cur_progress)
+
+        # write value
+        data_type = await progress.read_data_type_as_variant_type()
+        assert data_type == ua.VariantType.Double
+        await progress.write_value(ua.DataValue(ua.Variant(99, data_type)))
+```
+
+## opcuax.client
+
+If you want to access nodes in the OOP way, you can try `OpcuaClient`:
+
+```python
+from opcuax.client import OpcuaClient, OpcuaObject, OpcuaVariable
+
+
+class PrinterJob(OpcuaObject):
+    progress = OpcuaVariable(name="Progress")
+
+
+class Printer(OpcuaObject):
+    state = OpcuaVariable(name="State")
+    job = PrinterJob(name="LatestJob")
+
+async def main():
+    async with OpcuaClient(url="opc.tcp://localhost:4840") as client:
+        printer = await client.get_object(Printer, name="Printer1")
+
+        # get value
+        cur_state = await printer.state.get()
+        print(cur_state)
+
+        # set value
+        await printer.job.progress.set(99)
+```
+
 ## Contribute
 
 Fork the project and clone.
@@ -108,7 +176,7 @@ Push the branch and submit a pull request.
 ## Grafana Monitor Dashboard
 
 ```shell
-docker run --rm --name=mes-grafana -p 3080:3000 -v grafana:/var/lib/grafana -e "GF_INSTALL_PLUGINS=grafana-clock-panel, grafana-simple-json-datasource, grafana-mqtt-datasource" grafana/grafana-enterprise
+docker run --rm --name=mes-grafana -p 3080:3000 -v grafana:/var/lib/grafana -e "GF_INSTALL_PLUGINS=grafana-clock-panel, grafana-simple-json-datasource, grafana-mqtt-datasource, redis-datasource" grafana/grafana-enterprise
 ```
 
 ## Resources
