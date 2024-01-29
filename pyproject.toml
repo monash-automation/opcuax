@@ -5,7 +5,7 @@ description = ""
 authors = ["Jicheng Zhi <jzhi0004@student.monash.edu>"]
 readme = "README.md"
 packages = [
-    { include = "opcuax"},
+    { include = "opcuax" },
 ]
 
 [tool.poetry.dependencies]
@@ -31,6 +31,7 @@ asyncio_mode = "auto"
 [tool.poetry.scripts]
 server = "opcuax:run_server"
 settings = "opcuax.settings:display"
+worker = "opcuax.redis_worker:start"
 
 [build-system]
 requires = ["poetry-core"]
