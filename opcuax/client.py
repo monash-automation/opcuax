@@ -1,4 +1,4 @@
-from typing import Type, TypeVar
+from typing import Generic, TypeVar
 
 from asyncua import Client, Node, ua
 
@@ -13,17 +13,34 @@ class OpcuaNode:
         return type(self)(name=self.name)
 
 
-class OpcuaVariable(OpcuaNode):
-    async def get(self):
+_Value = TypeVar("_Value", int, str, float, bool)
+
+
+class OpcuaVariable(OpcuaNode, Generic[_Value]):
+    async def get(self) -> _Value:
         return await self.ua_node.get_value()
 
-    async def set(self, value):
+    async def set(self, value: _Value) -> None:
         data_type = await self.ua_node.read_data_type_as_variant_type()
         await self.ua_node.write_value(ua.DataValue(ua.Variant(value, data_type)))
 
 
 class OpcuaObject(OpcuaNode):
-    pass
+    async def __to_dict(self, parent_name: str | None = None) -> dict:
+        data = {}
+        for name, attr in self.__dict__.items():
+            key = name if parent_name is None else f"{parent_name}_{name}"
+            match attr:
+                case OpcuaVariable() as var:
+                    data[key] = await var.get()
+                case OpcuaObject() as obj:
+                    sub_fields = await obj.__to_dict(parent_name=key)
+                    data.update(sub_fields)
+
+        return data
+
+    async def to_dict(self):
+        return await self.__to_dict()
 
 
 _OpcuaObject = TypeVar("_OpcuaObject", bound=OpcuaObject)
