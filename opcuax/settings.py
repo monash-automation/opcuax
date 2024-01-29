@@ -1,18 +1,25 @@
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import AnyUrl, FilePath, HttpUrl, RedisDsn, UrlConstraints
+from pydantic import AnyUrl, FilePath, HttpUrl, PositiveFloat, RedisDsn, UrlConstraints
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 OpcuaUrl = Annotated[AnyUrl, UrlConstraints(allowed_schemes=["opc.tcp"])]
 
 
-class ServerSettings(BaseSettings):
-    redis_url: RedisDsn = "redis://127.0.0.1:6379"
-    metadata_file: FilePath = Path("objects.toml")
+class Settings(BaseSettings):
     opcua_server_url: OpcuaUrl = "opc.tcp://localhost:4840"
+    interval: PositiveFloat = 0.1
+
+
+class ServerSettings(Settings):
+    metadata_file: FilePath = Path("objects.toml")
     opcua_server_name: str = "Monash Automation OPC UA Server"
     opcua_server_namespace: HttpUrl = "http://monashautomation.com/server/opcua"
+
+
+class WorkerSettings(Settings):
+    redis_url: RedisDsn = "redis://127.0.0.1:6379"
 
 
 class EnvServerSettings(ServerSettings):

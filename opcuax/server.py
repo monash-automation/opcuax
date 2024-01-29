@@ -2,7 +2,7 @@ import asyncio
 import logging
 import tomllib
 
-from asyncua import Server, ua
+from asyncua import Node, Server, ua
 from asyncua.common.instantiate_util import instantiate
 
 from opcuax.config import parse_config
@@ -63,10 +63,14 @@ async def main():
                 logging.warning("Cannot find type definition of %s, skip", type_name)
                 continue
             for i in range(number):
-                await instantiate(
+                obj_name = f"{type_name}{i+1}"
+                nodes = await instantiate(
                     server.nodes.objects,
                     obj_types[type_name],
-                    bname=f"{type_name}{i+1}",
+                    bname=obj_name,
                 )
+                obj_node: Node = nodes[0]
+                logging.info("Created OPC UA object %s, name = %s", obj_node, obj_name)
+
         while True:
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(settings.interval)
