@@ -20,6 +20,10 @@ redis = "^5.0.1"
 pytest = "^7.4.4"
 pytest-asyncio = "^0.23.3"
 black = "^23.12.1"
+isort = "^5.13.2"
+
+[tool.isort]
+profile = "black"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
