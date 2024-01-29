@@ -1,23 +1,24 @@
 import asyncio
+import logging
 import tomllib
-from pathlib import Path
 
 from asyncua import Server, ua
 from asyncua.common.instantiate_util import instantiate
 
 from opcuax.config import parse_config
 from opcuax.custom_types import create_object_types
+from opcuax.settings import EnvServerSettings
 
 
 class OpcuaServer(Server):
-    index: int | None = None
-    namespace: str = "http://monashautomation.com/server"
-    server_name: str = "Monash Automation OPC UA Server"
+    index: int
+    namespace: str
 
-    def __init__(self, endpoint: str = "opc.tcp://localhost:4840"):
+    def __init__(self, server_name: str, endpoint: str, namespace: str):
         super().__init__()
+        self.namespace = namespace
         self.set_endpoint(endpoint)
-        self.set_server_name(self.server_name)
+        self.set_server_name(server_name)
         self.set_security_policy(
             [
                 ua.SecurityPolicyType.NoSecurity,
@@ -37,20 +38,29 @@ class OpcuaServer(Server):
 
 
 async def main():
-    config_path = Path(__file__).parent.parent / "objects.toml"
-    with open(config_path.absolute()) as f:
+    settings = EnvServerSettings()
+
+    logging.info(
+        "Load OPC UA object metadata from %s", settings.metadata_file.absolute()
+    )
+
+    with open(settings.metadata_file.absolute()) as f:
         config = tomllib.loads(f.read())
 
     template = parse_config(config)
 
-    async with OpcuaServer() as server:
+    async with OpcuaServer(
+        endpoint=str(settings.opcua_server_url),
+        server_name=settings.opcua_server_name,
+        namespace=str(settings.opcua_server_namespace),
+    ) as server:
         obj_types = await create_object_types(
             server.nodes.base_object_type, template.types, template.base_fields
         )
 
         for type_name, number in template.instance_numbers.items():
             if type_name not in obj_types:
-                print(f"Cannot find type definition of {type_name}, skip")
+                logging.warning("Cannot find type definition of %s, skip", type_name)
                 continue
             for i in range(number):
                 await instantiate(

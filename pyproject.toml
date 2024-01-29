@@ -12,6 +12,8 @@ packages = [
 python = "^3.11"
 asyncua = "^1.0.6"
 pydantic = "^2.5.3"
+pydantic-settings = "^2.1.0"
+redis = "^5.0.1"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -23,7 +25,8 @@ black = "^23.12.1"
 asyncio_mode = "auto"
 
 [tool.poetry.scripts]
-start = "opcuax:run"
+server = "opcuax:run_server"
+settings = "opcuax.settings:display"
 
 [build-system]
 requires = ["poetry-core"]
