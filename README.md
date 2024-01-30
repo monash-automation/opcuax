@@ -132,24 +132,24 @@ from opcuax.client import OpcuaClient, OpcuaObject, OpcuaFloatVar, OpcuaStrVar
 
 
 class PrinterJob(OpcuaObject):
-  progress = OpcuaFloatVar(name="Progress")
+    progress = OpcuaFloatVar(name="Progress")
 
 
 class Printer(OpcuaObject):
-  state = OpcuaStrVar(name="State")
-  job = PrinterJob(name="LatestJob")
+    state = OpcuaStrVar(name="State")
+    job = PrinterJob(name="LatestJob")
 
 
 async def main():
-  async with OpcuaClient(url="opc.tcp://localhost:4840") as client:
-    printer = await client.get_object(Printer, name="Printer1")
+    async with OpcuaClient(url="opc.tcp://localhost:4840") as client:
+        printer = await client.get_object(Printer, name="Printer1")
 
-    # get value
-    cur_state = await printer.state.get()
-    print(cur_state)
+        # get value
+        cur_state = await printer.state.get()
+        print(cur_state)
 
-    # set value
-    await printer.job.progress.set(99)
+        # set value
+        await printer.job.progress.set(99)
 ```
 
 ## Contribute
@@ -174,10 +174,55 @@ Code and commit.
 
 Push the branch and submit a pull request.
 
-## Grafana Monitor Dashboard
+## Docker
+
+### Build Image
 
 ```shell
-docker run -d --name=mes-grafana -p 3080:3000 -v grafana:/var/lib/grafana -e "GF_INSTALL_PLUGINS=grafana-clock-panel, grafana-simple-json-datasource, redis-datasource" grafana/grafana-oss
+sudo docker build --tag mes-opcuax .
+```
+
+### Create Network
+
+```shell
+docker network create mes
+```
+
+### Run Server
+
+```shell
+docker run -d --name=mes-opcua-server -p 4840:4840 \
+  --network mes \
+  --restart unless-stopped \
+  -e OPCUA_SERVER_URL="opc.tcp://0.0.0.0:4840" \
+  -e OPCUA_SERVER_NAME="Monash Automation OPC UA Server" \
+  -e OPCUA_SERVER_NAMESPACE='http://monashautomation.com/opcua/server' \
+  -e METADATA_FILE="/app/objects.toml" \
+  mes-opcuax server
+```
+
+```shell
+docker run -d --name mes-redis --network mes redis
+```
+
+### Run Worker
+
+```shell
+docker run --rm --name=mes-opcua-worker \
+  --network mes \
+  -e OPCUA_SERVER_URL="opc.tcp://mes-opcua-server:4840" \
+  -e REDIS_URL="redis://mes-redis:6379" \
+  mes-opcuax worker
+```
+
+### Grafana Dashboard
+
+```shell
+docker run -d --name=mes-grafana -p 3080:3000 \
+  --network mes \
+  -v grafana:/var/lib/mes-grafana \
+  -e "GF_INSTALL_PLUGINS=grafana-clock-panel, grafana-simple-json-datasource, redis-datasource" \
+  grafana/grafana-oss
 ```
 
 ## Resources
