@@ -215,6 +215,12 @@ docker run --rm --name=mes-opcua-worker \
   mes-opcuax worker
 ```
 
+Check Redis objects
+
+```shell
+docker exec -it mes-redis redis-cli hgetall printer1
+```
+
 ### Grafana Dashboard
 
 ```shell
@@ -224,6 +230,8 @@ docker run -d --name=mes-grafana -p 3080:3000 \
   -e "GF_INSTALL_PLUGINS=grafana-clock-panel, grafana-simple-json-datasource, redis-datasource" \
   grafana/grafana-oss
 ```
+
+Open `localhost:3080`, username is `admin` and password is `1234`
 
 ## Resources
 
