@@ -19,7 +19,7 @@ async def main():
 
     async def cache(obj: OpcuaObject, name: str):
         while True:
-            data = await obj.to_dict()
+            data = await obj.to_dict(flatten=True)
             logging.debug("Caching %s, %s", name, data)
             await redis_client.hset(name, mapping=data)
             await asyncio.sleep(settings.interval)
