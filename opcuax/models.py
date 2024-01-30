@@ -1,44 +1,26 @@
-import asyncio
-
-import redis.asyncio as redis
-
-from opcuax.client import OpcuaClient, OpcuaObject, OpcuaVariable
+from opcuax.client import OpcuaFloatVar, OpcuaObject, OpcuaStrVar
 
 
 class PrinterHead(OpcuaObject):
-    x = OpcuaVariable[float](name="X")
-    y = OpcuaVariable[float](name="Y")
-    z = OpcuaVariable[float](name="Z")
+    x = OpcuaFloatVar(name="X")
+    y = OpcuaFloatVar(name="Y")
+    z = OpcuaFloatVar(name="Z")
 
 
 class PrinterJob(OpcuaObject):
-    file = OpcuaVariable[str](name="File")
-    progress = OpcuaVariable[float](name="Progress")
-    time_left = OpcuaVariable[float](name="TimeLeft")
-    time_left_approx = OpcuaVariable[float](name="TimeLeftApprox")
-    time_used = OpcuaVariable[float](name="TimeUsed")
+    file = OpcuaStrVar(name="File")
+    progress = OpcuaFloatVar(name="Progress")
+    time_left = OpcuaFloatVar(name="TimeLeft")
+    time_left_approx = OpcuaFloatVar(name="TimeLeftApprox")
+    time_used = OpcuaFloatVar(name="TimeUsed")
 
 
 class Printer(OpcuaObject):
-    state = OpcuaVariable[str](name="State")
-    noz_act_temp = OpcuaVariable[float](name="NozzleActualTemperature")
-    bed_act_temp = OpcuaVariable[float](name="BedActualTemperature")
-    noz_tar_temp = OpcuaVariable[float](name="NozzleTargetTemperature")
-    bed_tar_temp = OpcuaVariable[float](name="BedTargetTemperature")
+    state = OpcuaStrVar(name="State")
+    noz_act_temp = OpcuaFloatVar(name="NozzleActualTemperature")
+    bed_act_temp = OpcuaFloatVar(name="BedActualTemperature")
+    noz_tar_temp = OpcuaFloatVar(name="NozzleTargetTemperature")
+    bed_tar_temp = OpcuaFloatVar(name="BedTargetTemperature")
 
     head = PrinterHead(name="Head")
     job = PrinterJob(name="LatestJob")
-
-
-async def main():
-    opcua_client = OpcuaClient(url="opc.tcp://localhost:4840")
-
-    async with opcua_client, redis.Redis() as redis_client:
-        printer = await opcua_client.get_object(Printer, name="Printer1")
-        data = await printer.to_dict()
-        print(data)
-        await redis_client.hset("printer1", mapping=data)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
