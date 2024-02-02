@@ -18,11 +18,21 @@ class ServerSettings(Settings):
     opcua_server_namespace: HttpUrl = "http://monashautomation.com/server/opcua"
 
 
+class ClientSettings(Settings):
+    opcua_server_namespace: HttpUrl = "http://monashautomation.com/server/opcua"
+
+
 class WorkerSettings(Settings):
     redis_url: RedisDsn = "redis://127.0.0.1:6379"
 
 
 class EnvServerSettings(ServerSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
+
+
+class EnvClientSettings(ClientSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )

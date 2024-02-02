@@ -29,9 +29,9 @@ profile = "black"
 asyncio_mode = "auto"
 
 [tool.poetry.scripts]
-server = "opcuax:run_server"
+server = "opcuax:server"
+cache = "opcuax:cache"
 settings = "opcuax.settings:display"
-worker = "opcuax.redis_worker:start"
 
 [build-system]
 requires = ["poetry-core"]

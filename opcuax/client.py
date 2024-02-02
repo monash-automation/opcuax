@@ -1,117 +1,65 @@
 from types import TracebackType
-from typing import Any, Generic, TypeVar
+from typing import TypeVar
 
-from asyncua import Client, Node, ua
+from asyncua import Client, Node
 
+from .obj import OpcuaObject
 
-class OpcuaNode:
-    ua_node: Node
-
-    def __init__(self, name: str):
-        self.ua_name = name
-
-    def clone(self) -> "OpcuaNode":
-        return type(self)(name=self.ua_name)
-
-    @property
-    def node_id(self) -> str:
-        return str(self.ua_node.nodeid)
-
-
-T = TypeVar("T")
-
-
-class OpcuaVariable(OpcuaNode, Generic[T]):
-    def __init__(self, name: str, cls: type[T], default: T):
-        super().__init__(name)
-        self.cls: type[T] = cls
-        self.default: T = default
-
-    async def get(self) -> T:
-        value = await self.ua_node.get_value()
-        assert isinstance(value, self.cls)
-        return value
-
-    async def set(self, value: T | None) -> None:
-        value = value or self.default
-        data_type = await self.ua_node.read_data_type_as_variant_type()
-        await self.ua_node.write_value(ua.DataValue(ua.Variant(value, data_type)))
-
-    def clone(self) -> OpcuaNode:
-        return type(self)(name=self.ua_name, cls=self.cls, default=self.default)
-
-
-# IDE doesn't provide auto complete if using functools.partial
-class _OpcuaVar:
-    def __init__(self, cls: type[T], default: T):
-        self.cls = cls
-        self.default = default
-
-    def __call__(self, name: str, default: T | None = None) -> OpcuaVariable[T]:
-        return OpcuaVariable(name=name, cls=self.cls, default=default or self.default)
-
-
-OpcuaStrVar = _OpcuaVar(cls=str, default="")
-OpcuaIntVar = _OpcuaVar(cls=int, default=0)
-OpcuaFloatVar = _OpcuaVar(cls=float, default=0.0)
-OpcuaBoolVar = _OpcuaVar(cls=bool, default=False)
-
-
-class OpcuaObject(OpcuaNode):
-    async def __to_dict(
-        self,
-        data: dict[str, Any],
-        parent_name: str | None = None,
-        flatten: bool = False,
-    ) -> dict[str, Any]:
-        for name, attr in self.__dict__.items():
-            key = name
-            if flatten and parent_name is not None:
-                key = f"{parent_name}_{name}"
-            match attr:
-                case OpcuaVariable() as var:
-                    data[key] = await var.get()
-                case OpcuaObject() as obj:
-                    if flatten:
-                        await obj.__to_dict(data=data, parent_name=key, flatten=True)
-                    else:
-                        data[key] = await obj.__to_dict(
-                            data={}, parent_name=key, flatten=False
-                        )
-
-        return data
-
-    async def to_dict(self, flatten: bool = False) -> dict[str, Any]:
-        return await self.__to_dict(data={}, flatten=flatten)
-
-
-_OpcuaObject = TypeVar("_OpcuaObject", bound=OpcuaObject)
+T = TypeVar("T", bound=OpcuaObject)
 
 
 class OpcuaClient:
-    def __init__(self, url: str):
+    client: Client
+    objects: dict[str, OpcuaObject]
+    server_namespace: str
+    namespace_index: int
+
+    def __init__(self, url: str, server_namespace: str):
         self.client: Client = Client(url)
+        self.objects = {}
+        self.server_namespace = server_namespace
 
-    async def set_ua_node(self, parent: Node, node: OpcuaNode) -> None:
-        node.ua_node = await parent.get_child(node.ua_name)
-
-        if not isinstance(node, OpcuaObject):
-            return
-
-        for name, attr in type(node).__dict__.items():
-            if not isinstance(attr, OpcuaNode):
-                continue
+    async def __init_fields(self, obj: OpcuaObject) -> None:
+        for name, attr in obj.opcua_class_vars().items():
             child = attr.clone()
-            setattr(node, name, child)
-            await self.set_ua_node(node.ua_node, child)
+            child.ua_node = await obj.ua_node.get_child(
+                f"{self.namespace_index}:{child.ua_name}"
+            )
+            setattr(obj, name, child)
 
-    async def get_object(self, cls: type[_OpcuaObject], name: str) -> _OpcuaObject:
+            if isinstance(child, OpcuaObject):
+                await self.__init_fields(child)
+
+    async def create_object(self, cls: type[T], name: str) -> T:
         obj = cls(name)
-        await self.set_ua_node(self.client.get_objects_node(), obj)
+        obj.ua_node = await self.root_object_node.get_child(
+            f"{self.namespace_index}:{name}"
+        )
+        await self.__init_fields(obj)
+
+        self.objects[name] = obj
         return obj
+
+    async def get_object(self, cls: type[T], name: str) -> T:
+        if name not in self.objects:
+            await self.create_object(cls, name)
+
+        obj = self.objects[name]
+
+        if not isinstance(obj, cls):
+            raise ValueError
+
+        return obj
+
+    @property
+    def root_object_node(self) -> Node:
+        return self.client.get_objects_node()
 
     async def __aenter__(self) -> "OpcuaClient":
         await self.client.__aenter__()
+        self.namespace_index = await self.client.get_namespace_index(
+            self.server_namespace
+        )
         return self
 
     async def __aexit__(

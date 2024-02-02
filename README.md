@@ -11,7 +11,7 @@ poetry install
 ## Run
 
 ```shell
-poetry run start
+poetry run server
 ```
 
 Connect to `opc.tcp://localhost:4840` with your OPC UA client.
@@ -123,12 +123,14 @@ async def main():
         await progress.write_value(ua.DataValue(ua.Variant(99, data_type)))
 ```
 
-## opcuax.client
+## OpcuaClient
 
 If you want to access nodes in the OOP way, you can try `OpcuaClient`:
 
 ```python
-from opcuax.client import OpcuaClient, OpcuaObject, OpcuaFloatVar, OpcuaStrVar
+from opcuax.client import OpcuaClient
+from opcuax.obj import OpcuaObject
+from opcuax.var import OpcuaFloatVar, OpcuaStrVar
 
 
 class PrinterJob(OpcuaObject):
@@ -141,15 +143,23 @@ class Printer(OpcuaObject):
 
 
 async def main():
-    async with OpcuaClient(url="opc.tcp://localhost:4840") as client:
+    async with OpcuaClient(
+            url="opc.tcp://localhost:4840",
+            server_namespace="http://monashautomation.com/opcua/server",
+    ) as client:
+        # Get object from server namespace
         printer = await client.get_object(Printer, name="Printer1")
 
-        # get value
+        # Get value
         cur_state = await printer.state.get()
         print(cur_state)
 
-        # set value
+        # Set value
         await printer.job.progress.set(99)
+
+        # Convert object to a dictionary
+        printer_data = await printer.to_dict()
+        print(printer_data)
 ```
 
 ## Contribute
@@ -212,7 +222,7 @@ docker run --rm --name=mes-opcua-worker \
   --network mes \
   -e OPCUA_SERVER_URL="opc.tcp://mes-opcua-server:4840" \
   -e REDIS_URL="redis://mes-redis:6379" \
-  mes-opcuax worker
+  mes-opcuax cache
 ```
 
 Check Redis objects
