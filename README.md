@@ -210,6 +210,11 @@ async def run_client(client: OpcuaClient):
         await client.update_objects(printers)
 ```
 
+## Contribute
+
+Please open an issue before coding in case you waste time on unwanted changes,
+and follow the [contribution guideline](./CONTRIBUTING.md)
+
 ## TODO
 
 * [ ] Only update outdated node
