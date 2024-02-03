@@ -8,7 +8,7 @@ from pydantic.fields import FieldInfo
 from .core import Opcuax, _OpcuaObjects
 from .node import OpcuaObjNode
 from .settings import EnvOpcuaServerSettings, OpcuaServerSettings
-from .values import default_value
+from .values import opcua_default_value
 
 
 class OpcuaServer(Opcuax):
@@ -54,7 +54,7 @@ class OpcuaServer(Opcuax):
             await asyncio.sleep(self.interval)
 
     async def __add_variable(self, parent: Node, name: str, field: FieldInfo) -> Node:
-        value = default_value(field)
+        value = opcua_default_value(field)
         var = await parent.add_variable(self.namespace, name, value)
         await var.set_modelling_rule(True)
         await var.set_writable(True)

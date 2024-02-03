@@ -1,5 +1,5 @@
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
 from logging import Logger
 from typing import TypeVar
 
@@ -27,13 +27,6 @@ class Opcuax(ABC):
         self.logger = logging.getLogger(type(self).__name__)
 
     async def create_opcua_nodes(self, objects_cls: type[OpcuaObjects]) -> None:
-        """
-        Create a tree of OpcuaNode instances. Root of the tree is
-        the objects node.
-        :param objects_cls:
-        :return:
-        """
-
         async def dfs(parent_node: OpcuaObjNode, cls: type[BaseModel]) -> None:
             ua_nodes = await parent_node.ua_node.get_children()
 
@@ -53,7 +46,7 @@ class Opcuax(ABC):
                     node = OpcuaObjNode(name, ua_node, self.namespace)
                     await dfs(node, field_cls)
                 else:
-                    node = OpcuaVarNode(name, ua_node, self.namespace)
+                    node = OpcuaVarNode(name, ua_node, self.namespace, field)
 
                 parent_node.add_child(node)
 

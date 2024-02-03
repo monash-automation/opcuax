@@ -1,6 +1,9 @@
 from typing import Any
 
 from asyncua import Node, ua
+from pydantic.fields import FieldInfo
+
+from opcuax.values import opcua_value_of
 
 
 class OpcuaNode:
@@ -13,21 +16,25 @@ class OpcuaNode:
         self.ua_node = node
         self.ua_namespace = namespace
 
-    def clone(self) -> "OpcuaNode":
-        return type(self)(name=self.ua_name)
-
     @property
     def node_id(self) -> str:
         return str(self.ua_node.nodeid)
 
 
 class OpcuaVarNode(OpcuaNode):
+    field_info: FieldInfo
+
+    def __init__(self, name: str, node: Node, namespace: int, field_info: FieldInfo):
+        super().__init__(name, node, namespace)
+        self.field_info = field_info
+
     async def read_value(self) -> Any:
         return await self.ua_node.get_value()
 
     async def write_value(self, value: Any) -> None:
+        opcua_value = opcua_value_of(value, self.field_info)
         var_type = await self.ua_node.read_data_type_as_variant_type()
-        ua_value = ua.DataValue(ua.Variant(value, var_type))
+        ua_value = ua.DataValue(ua.Variant(opcua_value, var_type))
         await self.ua_node.write_value(ua_value)
 
 
