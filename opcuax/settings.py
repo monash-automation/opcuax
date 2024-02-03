@@ -1,7 +1,6 @@
-from pathlib import Path
 from typing import Annotated
 
-from pydantic import AnyUrl, FilePath, HttpUrl, PositiveFloat, RedisDsn, UrlConstraints
+from pydantic import AnyUrl, HttpUrl, PositiveFloat, UrlConstraints
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 OpcuaUrl = Annotated[AnyUrl, UrlConstraints(allowed_schemes=["opc.tcp"])]
@@ -9,35 +8,30 @@ OpcuaUrl = Annotated[AnyUrl, UrlConstraints(allowed_schemes=["opc.tcp"])]
 
 class Settings(BaseSettings):
     opcua_server_url: OpcuaUrl = "opc.tcp://localhost:4840"
-    interval: PositiveFloat = 0.1
+    opcua_server_namespace: HttpUrl = "https://github.com/monash-automation/opcuax"
 
 
-class ServerSettings(Settings):
-    metadata_file: FilePath = Path("objects.toml")
-    opcua_server_name: str = "Monash Automation OPC UA Server"
-    opcua_server_namespace: HttpUrl = "http://monashautomation.com/server/opcua"
+class OpcuaServerSettings(Settings):
+    opcua_server_name: str = "OPC UA Server"
+    opcua_server_interval: PositiveFloat = 0.1
 
 
-class ClientSettings(Settings):
-    opcua_server_namespace: HttpUrl = "http://monashautomation.com/server/opcua"
+class OpcuaClientSettings(Settings):
+    pass
 
 
-class WorkerSettings(Settings):
-    redis_url: RedisDsn = "redis://127.0.0.1:6379"
-
-
-class EnvServerSettings(ServerSettings):
+class EnvOpcuaServerSettings(OpcuaServerSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
 
-class EnvClientSettings(ClientSettings):
+class EnvOpcuaClientSettings(OpcuaClientSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
 
 def display():
-    settings = EnvServerSettings()
+    settings = EnvOpcuaServerSettings()
     print(settings.model_dump_json(indent=2))

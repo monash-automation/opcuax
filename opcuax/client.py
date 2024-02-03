@@ -1,65 +1,37 @@
 from types import TracebackType
-from typing import TypeVar
 
-from asyncua import Client, Node
+from asyncua import Client
 
-from .obj import OpcuaObject
+from .core import Opcuax
+from .node import OpcuaObjNode
+from .settings import EnvOpcuaClientSettings, OpcuaClientSettings
 
-T = TypeVar("T", bound=OpcuaObject)
 
-
-class OpcuaClient:
+class OpcuaClient(Opcuax):
     client: Client
-    objects: dict[str, OpcuaObject]
     server_namespace: str
-    namespace_index: int
 
-    def __init__(self, url: str, server_namespace: str):
-        self.client: Client = Client(url)
-        self.objects = {}
-        self.server_namespace = server_namespace
+    def __init__(self, endpoint: str, namespace: str):
+        super().__init__(endpoint, namespace)
+        self.client: Client = Client(endpoint)
 
-    async def __init_fields(self, obj: OpcuaObject) -> None:
-        for name, attr in obj.opcua_class_vars().items():
-            child = attr.clone()
-            child.ua_node = await obj.ua_node.get_child(
-                f"{self.namespace_index}:{child.ua_name}"
-            )
-            setattr(obj, name, child)
-
-            if isinstance(child, OpcuaObject):
-                await self.__init_fields(child)
-
-    async def create_object(self, cls: type[T], name: str) -> T:
-        obj = cls(name)
-        obj.ua_node = await self.root_object_node.get_child(
-            f"{self.namespace_index}:{name}"
+    @staticmethod
+    def from_settings(settings: OpcuaClientSettings) -> "OpcuaClient":
+        return OpcuaClient(
+            endpoint=str(settings.opcua_server_url),
+            namespace=str(settings.opcua_server_namespace),
         )
-        await self.__init_fields(obj)
 
-        self.objects[name] = obj
-        return obj
-
-    async def get_object(self, cls: type[T], name: str) -> T:
-        if name not in self.objects:
-            await self.create_object(cls, name)
-
-        obj = self.objects[name]
-
-        if not isinstance(obj, cls):
-            raise ValueError
-
-        return obj
-
-    @property
-    def root_object_node(self) -> Node:
-        return self.client.get_objects_node()
+    @staticmethod
+    def from_env(env_file: str = ".env") -> "OpcuaClient":
+        settings = EnvOpcuaClientSettings(_env_file=env_file)
+        return OpcuaClient.from_settings(settings)
 
     async def __aenter__(self) -> "OpcuaClient":
         await self.client.__aenter__()
-        self.namespace_index = await self.client.get_namespace_index(
-            self.server_namespace
-        )
+        self.namespace = await self.client.get_namespace_index(self.namespace_uri)
+        self.ua_objects_node = self.client.get_objects_node()
+        self.objects_node = OpcuaObjNode("Objects", self.ua_objects_node, 0)
         return self
 
     async def __aexit__(
