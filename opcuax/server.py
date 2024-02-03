@@ -55,7 +55,12 @@ class OpcuaServer(Opcuax):
 
     async def __add_variable(self, parent: Node, name: str, field: FieldInfo) -> Node:
         value = opcua_default_value(field)
-        var = await parent.add_variable(self.namespace, name, value)
+        if issubclass(field.annotation, float):
+            var = await parent.add_variable(
+                self.namespace, name, value, varianttype=ua.VariantType.Float
+            )
+        else:
+            var = await parent.add_variable(self.namespace, name, value)
         await var.set_modelling_rule(True)
         await var.set_writable(True)
         return var
