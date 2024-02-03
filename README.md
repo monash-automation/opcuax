@@ -1,247 +1,220 @@
-# OPC UA Server
+# opcuax
 
-## Build
+A simple OPC UA library based on [opcua-asyncio](https://opcua-asyncio.readthedocs.io/en/latest/)
+and [Pydantic](https://docs.pydantic.dev/latest/).
 
-[Install poetry](https://python-poetry.org/docs/) and install dependencies
+## Code Examples
 
-```shell
-poetry install
-```
+* [Server](./examples/server.py)
+* [Client](./examples/client.py)
+* [Cache](./examples/redis_cache.py)
+* [Full code](./examples/tutorial.py) of [Getting Started](#getting-started) section
 
-## Run
+## Getting Started
 
-```shell
-poetry run server
-```
+Suppose we want to run an OPC UA server to record latest data of printers and robots in the lab:
 
-Connect to `opc.tcp://localhost:4840` with your OPC UA client.
+* Printers
+    * ip address
+    * current state
+    * latest job (time used in seconds, filename)
+* Robot
+    * ip address
+    * current position (`(x, y)` both in range `[-200, 200]`)
+    * uptime (in seconds)
 
-![example.png](example.png)
+### Create Models
 
-## Objects
-
-The [objects.toml](./objects.toml) contains metadata for object nodes.
-I chose [TOML](https://toml.io/en/) because it is more human friendly than YAML and JSON.
-
-`Base` (base class) contains fields for all server objects.
-
-```toml
-[Base]
-heartbeat = 0
-status = "offline"
-```
-
-This is equivalent to the Python code below:
+We first convert the requirement to Python classes using Pydantic `BaseModel`.
 
 ```python
-class Base:
-    heartbeat = 0
-    status = "offline"
+from typing import Annotated
+
+from pydantic import BaseModel, NonNegativeInt, Field, IPvAnyAddress
+
+LabPos = Annotated[float, Field(ge=-200, le=200, default=0)]
 
 
-class Printer(Base):
-    pass
+class Trackable(BaseModel):
+    ip: IPvAnyAddress = IPvAnyAddress("127.0.0.1")
+
+
+class Position(BaseModel):
+    x: LabPos
+    y: LabPos
+
+
+class Job(BaseModel):
+    filename: str = ""
+    time_used: NonNegativeInt
+
+
+class Printer(Trackable):
+    state: str = "Unknown"
+    latest_job: Job
+
+
+class Robot(Trackable):
+    position: Position
+    up_time: NonNegativeInt = 0
 ```
 
-`Printer.Control` contains fields for a nested object named `Control`.
-If you do not have nested object fields, just use `Printer`.
+#### Important
 
-```toml
-[Printer]
-State = "Error"
+You cannot declare **nullable** types because OPC UA doesn't support `null` value for variables and objects.
+`opcuax` set default values for primitive types (`str -> ""`, `int -> 0`, `float -> 0`, `bool -> False`),
+but it is recommended that you declare meaningful default values in classes.
 
-[Printer.Control]
-PartRemoved = false
-BedCleaned = false
-File = "Unknown"
-```
+### Declare OPC UA Objects
 
-This is equivalent to the Python code below:
+Next we create a subclass of `OpcuaObjects` to represent objects we want to crate in the OPC UA server.
 
 ```python
-class PrinterControl:
-    PartRemoved = False
-    BedCleaned = False
-    File = "Unknown"
+from opcuax.models import OpcuaObjects
 
 
-class Printer:
-    State = "Error"
-    Control = PrinterControl()
+class Lab(OpcuaObjects):
+    printer1: Printer
+    printer2: Printer
+    robot: Robot
 ```
 
-`instance.numbers` contains number of instances you want to create for each object type.
+### Setup Server
 
-```toml
-[instances.numbers]
-Printer = 3
-```
-
-## Pitfalls
-
-Please use `0.0` for float numbers, `0` will be parsed as int.
-
-Namespace indices of object nodes starts from `10`.
-
-## Client
-
-Given the object type below:
-
-```toml
-[Printer.LatestJob]
-Progress = 0.0
-```
-
-### asyncua.Client
-
-To get value of field `Progress`, we can use a client to
-get the target node by browse names (`bname`)
+To create a server, we need to specify an endpoint, name of the server and a namespace uri for our objects.
+This can be done by either using a settings object:
 
 ```python
-from asyncua import Client, ua
+from opcuax import OpcuaServer
+from opcuax.settings import OpcuaServerSettings
 
-
-async def main():
-    async with Client(url="opc.tcp://localhost:4840") as client:
-        root = client.get_objects_node()
-
-        # traverse from root
-        printer = await root.get_child("Printer1")
-        job = await printer.get_child("LatestJob")
-        progress = await job.get_child("Progress")
-
-        # traverse by path
-        assert progress == await root.get_child("Printer1/LatestJob/Progress")
-
-        # read value
-        cur_progress = await progress.get_value()
-        print(cur_progress)
-
-        # write value
-        data_type = await progress.read_data_type_as_variant_type()
-        assert data_type == ua.VariantType.Double
-        await progress.write_value(ua.DataValue(ua.Variant(99, data_type)))
+settings = OpcuaServerSettings(
+    opcua_server_url="opc.tcp://localhost:4840",
+    opcua_server_name="Opcua Lab Server",
+    opcua_server_namespace="https://github.com/monash-automation/opcuax",
+)
+server = OpcuaServer.from_settings(settings)
 ```
 
-## OpcuaClient
+Or using environment variables or a `.env` file:
 
-If you want to access nodes in the OOP way, you can try `OpcuaClient`:
+```.dotenv
+OPCUA_SERVER_URL='opc.tcp://localhost:4840'
+OPCUA_SERVER_NAME='Opcua Lab Server'
+OPCUA_SERVER_NAMESPACE='https://github.com/monash-automation/opcuax'
+```
 
 ```python
-from opcuax.client import OpcuaClient
-from opcuax.obj import OpcuaObject
-from opcuax.var import OpcuaFloatVar, OpcuaStrVar
+from opcuax import OpcuaServer
 
-
-class PrinterJob(OpcuaObject):
-    progress = OpcuaFloatVar(name="Progress")
-
-
-class Printer(OpcuaObject):
-    state = OpcuaStrVar(name="State")
-    job = PrinterJob(name="LatestJob")
-
-
-async def main():
-    async with OpcuaClient(
-            url="opc.tcp://localhost:4840",
-            server_namespace="http://monashautomation.com/opcua/server",
-    ) as client:
-        # Get object from server namespace
-        printer = await client.get_object(Printer, name="Printer1")
-
-        # Get value
-        cur_state = await printer.state.get()
-        print(cur_state)
-
-        # Set value
-        await printer.job.progress.set(99)
-
-        # Convert object to a dictionary
-        printer_data = await printer.to_dict()
-        print(printer_data)
+server = OpcuaServer.from_env(env_file=".env")
 ```
 
-## Contribute
+With a server we can create printer and robot objects
 
-Fork the project and clone.
+```python
+from opcuax import OpcuaServer
 
-Config Git with your username and email.
 
-```shell
-git config --global user.name 'your name'
-git config --global user.email 'your email'
+async def create_objects(server: OpcuaServer):
+    async with server:
+        await server.create_objects(Lab)
+
+        await server.loop()
 ```
 
-Install pre-commit hooks
+Now you can verify objects creation by connecting the endpoint in your OPC UA client,
+or try [opcua-client-gui](https://github.com/FreeOpcUa/opcua-client-gui) if you don't have one.
 
-```shell
-pip install pre-commit
-pre-commit install
+![tutorial-example.png](examples/tutorial_example.png)
+
+#### Important
+
+You must call `create_objects` inside an `async with` block, which is required by the
+server to prepare itself (init variables, setup endpoint, register namespace, listen to target port...).
+
+#### Read and Update Object Values
+
+We can call `read_objects` to get latest values of all objects,
+and call `update_objects` to update the server after local modification.
+
+```python
+from opcuax import OpcuaServer
+
+
+async def create_objects(server: OpcuaServer):
+    async with server:
+        await server.create_objects(Lab)
+
+        lab = await server.read_objects(Lab)
+        print(lab.model_dump_json())
+
+        lab.robot.position = Position(x=100.0, y=100.0)
+        await server.update_objects(lab)
+
+        await server.loop()
 ```
 
-Code and commit.
+### Client
 
-Push the branch and submit a pull request.
+Similar to server, we can create a client by either using a settings object:
 
-## Docker
+```python
+from opcuax import OpcuaClient
+from opcuax.settings import OpcuaClientSettings
 
-### Build Image
-
-```shell
-sudo docker build --tag mes-opcuax .
+settings = OpcuaClientSettings(
+    opcua_server_url="opc.tcp://localhost:4840",
+    opcua_server_namespace="https://github.com/monash-automation/opcuax",
+)
+client = OpcuaClient.from_settings(settings)
 ```
 
-### Create Network
+Or by using environment variables or a `.env` file
 
-```shell
-docker network create mes
+```dotenv
+OPCUA_SERVER_URL='opc.tcp://localhost:4840'
+OPCUA_SERVER_NAMESPACE='https://github.com/monash-automation/opcuax'
 ```
 
-### Run Server
+```python
+from opcuax import OpcuaClient
 
-```shell
-docker run -d --name=mes-opcua-server -p 4840:4840 \
-  --network mes \
-  --restart unless-stopped \
-  -e OPCUA_SERVER_URL="opc.tcp://0.0.0.0:4840" \
-  -e OPCUA_SERVER_NAME="Monash Automation OPC UA Server" \
-  -e OPCUA_SERVER_NAMESPACE='http://monashautomation.com/opcua/server' \
-  -e METADATA_FILE="/app/objects.toml" \
-  mes-opcuax server
+client = OpcuaClient.from_env(env_file=".env")
 ```
 
-```shell
-docker run -d --name mes-redis --network mes redis
+#### Read and Update Object Values
+
+This part is almost same as working with a server, except that you don't need to
+include all objects in the `OpcuaObjects` class unless you need to work with all of them.
+
+```python
+from opcuax import OpcuaClient, OpcuaObjects
+
+
+class Printers(OpcuaObjects):
+    printer1: Printer
+    robot: Robot
+
+
+async def run_client(client: OpcuaClient):
+    # wait until server is ready if you run server and client in one program
+    await asyncio.sleep(2)
+
+    async with client:
+        printers = await client.read_objects(Printers)
+        print(printers.model_dump_json())
+
+        printers.printer1.state = "Printing"
+        printers.printer1.latest_job.filename = "A.gcode"
+        await client.update_objects(printers)
 ```
 
-### Run Worker
+## TODO
 
-```shell
-docker run --rm --name=mes-opcua-worker \
-  --network mes \
-  -e OPCUA_SERVER_URL="opc.tcp://mes-opcua-server:4840" \
-  -e REDIS_URL="redis://mes-redis:6379" \
-  mes-opcuax cache
-```
-
-Check Redis objects
-
-```shell
-docker exec -it mes-redis redis-cli hgetall printer1
-```
-
-### Grafana Dashboard
-
-```shell
-docker run -d --name=mes-grafana -p 3080:3000 \
-  --network mes \
-  -v grafana:/var/lib/mes-grafana \
-  -e "GF_INSTALL_PLUGINS=grafana-clock-panel, grafana-simple-json-datasource, redis-datasource" \
-  grafana/grafana-oss
-```
-
-Open `localhost:3080`, username is `admin` and password is `1234`
+* [ ] Only update outdated node
+* [ ] Only read/write selected object by `Lab.printer1`
+* [ ] Concurrent friendly API
 
 ## Resources
 
@@ -250,12 +223,3 @@ Open `localhost:3080`, username is `admin` and password is `1234`
     * [NodeId](https://reference.opcfoundation.org/DI/v104/docs/3.3.2.1)
     * [FolderNode](https://reference.opcfoundation.org/Core/Part3/v104/docs/5.5.3#_Ref131474245)
     * [Nested Objects](https://github.com/FreeOpcUa/opcua-asyncio/issues/185#issuecomment-627752985)
-* [Book from qiyuqi](https://qiyuqi.gitbooks.io/opc-ua/content/Part3/Chapter4.html)
-
-## Future
-
-* Backup and restore data after server restarted
-* Move endpoint and server name to `.env` file
-* Use Pydantic classes
-  as [object node declaration](https://github.com/monash-automation/mes-printing-server/blob/main/src/opcuax/objects.py)
-* [Record history Data](https://github.com/FreeOpcUa/opcua-asyncio/blob/master/examples/server-datavalue-history.py)
