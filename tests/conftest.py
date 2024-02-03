@@ -4,7 +4,7 @@ import pytest_asyncio
 from opcuax.client import OpcuaClient
 from opcuax.server import OpcuaServer
 
-from .models import Pet, Puppy
+from .models import Pets
 
 
 @pytest.fixture
@@ -21,7 +21,7 @@ def namespace() -> str:
 async def server(endpoint, namespace) -> OpcuaServer:
     async with OpcuaServer(
         endpoint=endpoint,
-        server_name="unittest server",
+        name="unittest server",
         namespace=namespace,
     ) as server:
         yield server
@@ -29,14 +29,12 @@ async def server(endpoint, namespace) -> OpcuaServer:
 
 @pytest_asyncio.fixture
 async def pet_server(server) -> OpcuaServer:
-    await server.create_object_type(Pet)
-    await server.create_object(Pet, "Kitty")
-    await server.create_object(Puppy, "Puppy")
+    await server.create_objects(Pets)
 
     yield server
 
 
 @pytest_asyncio.fixture
 async def client(pet_server) -> OpcuaClient:
-    async with OpcuaClient(pet_server.endpoint, pet_server.namespace) as client:
+    async with OpcuaClient(pet_server.endpoint, pet_server.namespace_uri) as client:
         yield client

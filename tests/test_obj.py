@@ -1,93 +1,60 @@
 import pytest_asyncio
 
-from .models import Pet, PetOwner, Puppy
+from opcuax.server import OpcuaServer
+
+from .models import Pet, Pets, Puppy
 
 
 @pytest_asyncio.fixture
-async def kitty(pet_server) -> Pet:
-    yield await pet_server.get_object(Pet, "Kitty")
+async def pets(pet_server: OpcuaServer) -> Pets:
+    yield await pet_server.read_objects(Pets)
 
 
 @pytest_asyncio.fixture
-async def puppy(pet_server) -> Puppy:
-    yield await pet_server.get_object(Puppy, "Puppy")
+async def kitty(pets: Pets) -> Pet:
+    yield pets.kitty
 
 
-async def test_get_object(pet_server):
-    pet = await pet_server.get_object(Pet, "Kitty")
-
-    assert isinstance(pet, Pet)
-
-
-async def test_get_default_value(kitty):
-    name = await kitty.name.get()
-    assert name == Pet.name.default
+@pytest_asyncio.fixture
+async def puppy(pets: Pets) -> Puppy:
+    yield pets.puppy
 
 
-async def test_get_from_nested_object(kitty):
-    owner_name = await kitty.owner.name.get()
-    assert owner_name == PetOwner.name.default
+async def test_get_default_value(pet_server, pets):
+    pets.kitty.name = "foo"
+    await pet_server.update_objects(pets)
+
+    pets = await pet_server.read_objects(Pets)
+    assert pets.kitty.name == "foo"
 
 
-async def test_set(kitty):
-    await kitty.name.set("foo")
+async def test_set_value_of_nested_object(pet_server, pets):
+    pets.kitty.owner.name = "foo"
+    await pet_server.update_objects(pets)
 
-    name = await kitty.name.get()
-    assert name == "foo"
-
-
-async def test_set_nested_object_field(kitty):
-    await kitty.owner.name.set("foo")
-
-    owner_name = await kitty.owner.name.get()
-    assert owner_name == "foo"
-
-
-async def test_inheritance(puppy):
-    name = await puppy.name.get()
-    assert name == Pet.name.default
-
-    food = await puppy.food.get()
-    assert food == Puppy.food.default
+    pets = await pet_server.read_objects(Pets)
+    assert pets.kitty.owner.name == "foo"
 
 
 async def test_to_dict(kitty):
-    data = await kitty.to_dict()
+    data = kitty.model_dump()
 
     assert data == {
-        Pet.name.ua_name: Pet.name.default,
-        Pet.age.ua_name: Pet.age.default,
-        Pet.weight.ua_name: Pet.weight.default,
-        Pet.owner.ua_name: {
-            PetOwner.name.ua_name: PetOwner.name.default,
-            PetOwner.address.ua_name: PetOwner.address.default,
-        },
+        "name": "",
+        "age": 0,
+        "weight": 0.0,
+        "owner": {"name": "", "address": ""},
     }
 
 
 async def test_inheritance_to_dict(puppy):
-    data = await puppy.to_dict()
+    data = puppy.model_dump()
 
     assert data == {
-        Puppy.name.ua_name: Puppy.name.default,
-        Puppy.age.ua_name: Puppy.age.default,
-        Puppy.weight.ua_name: Puppy.weight.default,
-        Puppy.owner.ua_name: {
-            PetOwner.name.ua_name: PetOwner.name.default,
-            PetOwner.address.ua_name: PetOwner.address.default,
-        },
-        Puppy.food.ua_name: Puppy.food.default,
-        Puppy.birthday.ua_name: Puppy.birthday.default,
-    }
-
-
-async def test_to_flattened_dict(kitty):
-    data = await kitty.to_dict(flatten=True)
-
-    assert data == {
-        Pet.name.ua_name: Pet.name.default,
-        Pet.age.ua_name: Pet.age.default,
-        Pet.weight.ua_name: Pet.weight.default,
-        "Owner.Name": PetOwner.name.default,
-        "Owner.Address": PetOwner.address.default,
+        "name": "",
+        "age": 0,
+        "weight": 0.0,
+        "owner": {"name": "", "address": ""},
+        "food": "",
+        "birthday": "",
     }

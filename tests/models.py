@@ -1,28 +1,34 @@
-from opcuax.obj import OpcuaObject
-from opcuax.var import OpcuaFloatVar, OpcuaIntVar, OpcuaStrVar
+from pydantic import BaseModel
+
+from opcuax.models import OpcuaObjects
 
 
-class PetOwner(OpcuaObject):
-    name = OpcuaStrVar(name="Name", default="???")
-    address = OpcuaStrVar(name="Address", default="TBD")
+class PetOwner(BaseModel):
+    name: str
+    address: str
 
 
-class Pet(OpcuaObject):
-    name = OpcuaStrVar(name="Name", default="unknown")
-    age = OpcuaIntVar(name="Age")
-    weight = OpcuaFloatVar(name="Weight")
+class Pet(BaseModel):
+    name: str
+    age: int
+    weight: float
 
-    owner = PetOwner(name="Owner")
+    owner: PetOwner
 
 
 class Dog(Pet):
-    food = OpcuaStrVar("Food")
+    food: str
 
 
 class Puppy(Dog):
-    birthday = OpcuaStrVar("BirthDay", default="today?")
+    birthday: str
 
 
-class Home(OpcuaObject):
-    dog1 = Puppy(name="Dog1")
-    dog2 = Puppy(name="Dog2")
+class Home(BaseModel):
+    dog1: Puppy
+    dog2: Puppy
+
+
+class Pets(OpcuaObjects):
+    kitty: Pet
+    puppy: Puppy
