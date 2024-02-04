@@ -1,8 +1,8 @@
 from datetime import date, datetime
-from ipaddress import IPv4Address
 from typing import Any
 
-from pydantic.fields import FieldInfo, PydanticUndefined
+from pydantic.fields import FieldInfo
+from pydantic_core import PydanticUndefined
 
 
 def opcua_default_value(field: FieldInfo) -> Any:
@@ -30,10 +30,9 @@ def opcua_default_value(field: FieldInfo) -> Any:
 
 def opcua_value_of(value: Any, field: FieldInfo) -> Any:
     cls = field.annotation
+    assert cls is not None
 
     if issubclass(cls, (str, int, float, bool)):
         return value
-    elif issubclass(cls, IPv4Address):
-        return str(value)
     else:
         return str(value)

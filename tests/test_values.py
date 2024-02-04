@@ -6,7 +6,7 @@ class NonNegFloat(BaseModel):
     val: NonNegativeFloat = 0
 
 
-async def test_non_negative_float(server: OpcuaServer):
+async def test_non_negative_float(server: OpcuaServer) -> None:
     class Objects(OpcuaObjects):
         num: NonNegFloat
 

@@ -1,8 +1,9 @@
 import asyncio
 import logging
 
-from examples.printer import Printer, Temperature
 from opcuax import OpcuaObjects, OpcuaServer, OpcuaServerSettings
+
+from examples.printer import Printer, Temperature
 
 
 # objects we want to create in the OPC UA server
@@ -26,7 +27,7 @@ def build_server_from_env() -> OpcuaServer:
     return OpcuaServer.from_env(env_file=".env")
 
 
-async def run_server():
+async def run_server() -> None:
     server = build_server_from_settings()
 
     async with server:

@@ -14,18 +14,35 @@ python = "^3.11"
 asyncua = "^1.0.6"
 pydantic = "^2.5.3"
 pydantic-settings = "^2.1.0"
-redis = "^5.0.1"
 
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.4"
 pytest-asyncio = "^0.23.3"
-flatdict = "^4.0.1"
+redis = "^5.0.1"
 pre-commit = "^3.6.0"
 ruff = "^0.2.0"
+mypy = "^1.8.0"
+
+
+[tool.poetry.group.optional.dependencies]
+redis = "^5.0.1"
+flatdict = "^4.0.1"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "asyncua"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "flatdict"
+ignore_missing_imports = true
 
 [tool.ruff]
 src = ["opcuax", "tests", "examples"]
@@ -40,6 +57,9 @@ select = [
     "C4", # flake8-comprehensions
     "UP", # pyupgrade
 ]
+
+[tool.ruff.lint.isort]
+known-third-party = ["pydantic", "asyncua"]
 
 [tool.poetry.scripts]
 settings = "opcuax.settings:display"

@@ -1,9 +1,10 @@
+from opcuax import OpcuaServer
 from opcuax.node import OpcuaObjNode
 
 from tests.models import Pets
 
 
-async def test_server_create_nodes(pet_server):
+async def test_server_create_nodes(pet_server: OpcuaServer) -> None:
     await pet_server.create_opcua_nodes(Pets)
 
     objects = pet_server.objects_node
@@ -15,7 +16,7 @@ async def test_server_create_nodes(pet_server):
     assert objects.children["puppy"].ua_node.nodeid == ua_puppy.nodeid
 
 
-async def test_to_dict(pet_server):
+async def test_to_dict(pet_server: OpcuaServer) -> None:
     await pet_server.create_opcua_nodes(Pets)
 
     kitty_node = pet_server.objects_node.children["kitty"]

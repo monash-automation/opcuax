@@ -1,7 +1,9 @@
+from opcuax import OpcuaServer
+
 from .models import Home, Pet, Pets, Puppy
 
 
-async def test_create_object_type(server):
+async def test_create_object_type(server: OpcuaServer) -> None:
     type_node = await server.create_ua_object_type(Pet)
 
     name = await type_node.get_child("2:name")
@@ -11,7 +13,7 @@ async def test_create_object_type(server):
     assert all([name, owner, owner_name])
 
 
-async def test_inheritance(server):
+async def test_inheritance(server: OpcuaServer) -> None:
     type_node = await server.create_ua_object_type(Puppy)
 
     name = await type_node.get_child("2:name")
@@ -21,7 +23,7 @@ async def test_inheritance(server):
     assert all([name, food, birthday])
 
 
-async def test_fields_of_same_type(server):
+async def test_fields_of_same_type(server: OpcuaServer) -> None:
     type_node = await server.create_ua_object_type(Home)
 
     dog1 = await type_node.get_child("2:dog1")
@@ -31,7 +33,7 @@ async def test_fields_of_same_type(server):
     assert dog1.nodeid != dog2.nodeid
 
 
-async def test_read_objects(pet_server):
+async def test_read_objects(pet_server: OpcuaServer) -> None:
     pets = await pet_server.read_objects(Pets)
 
     assert pets.kitty.name == ""

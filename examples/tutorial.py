@@ -60,7 +60,7 @@ def build_client() -> OpcuaClient:
     return OpcuaClient.from_settings(settings)
 
 
-async def run_server(server: OpcuaServer):
+async def run_server(server: OpcuaServer) -> None:
     async with server:
         await server.create_objects(Lab)
 
@@ -78,7 +78,7 @@ class Printers(OpcuaObjects):
     robot: Robot
 
 
-async def run_client(client: OpcuaClient):
+async def run_client(client: OpcuaClient) -> None:
     await asyncio.sleep(2)  # wait until server is ready
 
     async with client:
@@ -93,7 +93,7 @@ async def run_client(client: OpcuaClient):
         print(printers.model_dump_json())
 
 
-async def main():
+async def main() -> None:
     async with asyncio.TaskGroup() as tg:
         tg.create_task(run_server(build_server()))
         tg.create_task(run_client(build_client()))

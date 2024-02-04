@@ -55,6 +55,8 @@ class OpcuaServer(Opcuax):
 
     async def __add_variable(self, parent: Node, name: str, field: FieldInfo) -> Node:
         value = opcua_default_value(field)
+        assert field.annotation is not None
+
         if issubclass(field.annotation, float):
             var = await parent.add_variable(
                 self.namespace, name, value, varianttype=ua.VariantType.Float
@@ -77,6 +79,8 @@ class OpcuaServer(Opcuax):
         async def dfs(cls: type[BaseModel], parent: Node) -> None:
             for name, field in cls.model_fields.items():
                 field_cls = field.annotation
+                assert field_cls is not None
+
                 if issubclass(field_cls, BaseModel):
                     # nested types are not supported
                     node = await self.__add_object(parent, name)
@@ -103,13 +107,14 @@ class OpcuaServer(Opcuax):
     async def create_ua_objects(self, cls: type[_OpcuaObjects]) -> None:
         for name, field in cls.model_fields.items():
             field_cls = field.annotation
+            assert field_cls is not None
 
             if issubclass(field_cls, BaseModel):
                 await self.create_ua_object(field_cls, name)
             else:
                 await self.__add_variable(self.objects_node.ua_node, name, field)
 
-    async def create_objects(self, cls: type[_OpcuaObjects]):
+    async def create_objects(self, cls: type[_OpcuaObjects]) -> None:
         await self.create_ua_objects(cls)
         await self.create_opcua_nodes(cls)
 

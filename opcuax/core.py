@@ -41,14 +41,15 @@ class Opcuax(ABC):
 
                 field = cls.model_fields[name]
                 field_cls = field.annotation
+                assert field_cls is not None
 
                 if issubclass(field_cls, BaseModel):
-                    node = OpcuaObjNode(name, ua_node, self.namespace)
-                    await dfs(node, field_cls)
+                    obj_node = OpcuaObjNode(name, ua_node, self.namespace)
+                    parent_node.add_child(obj_node)
+                    await dfs(obj_node, field_cls)
                 else:
-                    node = OpcuaVarNode(name, ua_node, self.namespace, field)
-
-                parent_node.add_child(node)
+                    var_node = OpcuaVarNode(name, ua_node, self.namespace, field)
+                    parent_node.add_child(var_node)
 
         await dfs(self.objects_node, objects_cls)
 

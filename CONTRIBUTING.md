@@ -60,10 +60,17 @@ Try [opcua-client-gui](https://github.com/FreeOpcUa/opcua-client-gui) if you nee
 
 ## Test
 
-Run unit tests by
+### Unit Test
 
 ```shell
 pytest tests/
+```
+
+### Static Checking
+
+```shell
+pip install mypy
+mypy .
 ```
 
 Please make sure all tests are passed before you commit

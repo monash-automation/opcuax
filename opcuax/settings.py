@@ -7,8 +7,10 @@ OpcuaUrl = Annotated[AnyUrl, UrlConstraints(allowed_schemes=["opc.tcp"])]
 
 
 class Settings(BaseSettings):
-    opcua_server_url: OpcuaUrl = "opc.tcp://localhost:4840"
-    opcua_server_namespace: HttpUrl = "https://github.com/monash-automation/opcuax"
+    opcua_server_url: OpcuaUrl = OpcuaUrl("opc.tcp://localhost:4840")
+    opcua_server_namespace: HttpUrl = HttpUrl(
+        "https://github.com/monash-automation/opcuax"
+    )
 
 
 class OpcuaServerSettings(Settings):
@@ -32,6 +34,6 @@ class EnvOpcuaClientSettings(OpcuaClientSettings):
     )
 
 
-def display():
+def display() -> None:
     settings = EnvOpcuaServerSettings()
     print(settings.model_dump_json(indent=2))
