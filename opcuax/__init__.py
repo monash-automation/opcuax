@@ -9,5 +9,4 @@ __all__ = [
 from .client import OpcuaClient
 from .models import OpcuaObjects
 from .server import OpcuaServer
-from .settings import OpcuaClientSettings
-from .settings import OpcuaServerSettings
+from .settings import OpcuaClientSettings, OpcuaServerSettings

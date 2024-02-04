@@ -1,15 +1,14 @@
 import asyncio
 from typing import Annotated
 
-from pydantic import BaseModel, Field, IPvAnyAddress, NonNegativeInt
-
 from opcuax import (
     OpcuaClient,
+    OpcuaClientSettings,
     OpcuaObjects,
     OpcuaServer,
-    OpcuaClientSettings,
     OpcuaServerSettings,
 )
+from pydantic import BaseModel, Field, IPvAnyAddress, NonNegativeInt
 
 LabPos = Annotated[float, Field(ge=-200, le=200, default=0)]
 

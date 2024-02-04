@@ -1,6 +1,5 @@
-from pydantic import BaseModel
-
 from opcuax.models import OpcuaObjects
+from pydantic import BaseModel
 
 
 class PetOwner(BaseModel):

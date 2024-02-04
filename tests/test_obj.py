@@ -1,6 +1,5 @@
 import pytest_asyncio
-
-from opcuax.server import OpcuaServer
+from opcuax import OpcuaServer
 
 from .models import Pet, Pets, Puppy
 

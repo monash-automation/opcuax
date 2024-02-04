@@ -1,6 +1,5 @@
-from pydantic import BaseModel, NonNegativeFloat
-
 from opcuax import OpcuaObjects, OpcuaServer
+from pydantic import BaseModel, NonNegativeFloat
 
 
 class NonNegFloat(BaseModel):

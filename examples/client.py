@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from examples.printer import Printer, PrinterHead
-from opcuax import OpcuaClient, OpcuaObjects, OpcuaClientSettings
+from opcuax import OpcuaClient, OpcuaClientSettings, OpcuaObjects
 
 
 class Desk(OpcuaObjects):

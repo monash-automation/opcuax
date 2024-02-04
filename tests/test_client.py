@@ -1,5 +1,4 @@
 import pytest_asyncio
-
 from opcuax.client import OpcuaClient
 
 from .models import Pets

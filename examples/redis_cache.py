@@ -2,11 +2,10 @@ import asyncio
 
 import flatdict
 import redis.asyncio as redis
-from pydantic import BaseModel
-
 from examples.client import build_client_from_settings
 from examples.printer import Printer
 from opcuax import OpcuaObjects
+from pydantic import BaseModel
 
 
 class Printers(OpcuaObjects):

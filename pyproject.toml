@@ -24,11 +24,22 @@ flatdict = "^4.0.1"
 pre-commit = "^3.6.0"
 ruff = "^0.2.0"
 
-[tool.isort]
-profile = "black"
-
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+
+[tool.ruff]
+src = ["opcuax", "tests", "examples"]
+
+[tool.ruff.lint]
+select = [
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # pyflakes
+    "I", # isort
+    "B", # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
 
 [tool.poetry.scripts]
 settings = "opcuax.settings:display"

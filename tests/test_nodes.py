@@ -1,4 +1,5 @@
 from opcuax.node import OpcuaObjNode
+
 from tests.models import Pets
 
 
