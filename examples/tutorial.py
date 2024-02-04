@@ -3,8 +3,13 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field, IPvAnyAddress, NonNegativeInt
 
-from opcuax import OpcuaClient, OpcuaObjects, OpcuaServer
-from opcuax.settings import OpcuaClientSettings, OpcuaServerSettings
+from opcuax import (
+    OpcuaClient,
+    OpcuaObjects,
+    OpcuaServer,
+    OpcuaClientSettings,
+    OpcuaServerSettings,
+)
 
 LabPos = Annotated[float, Field(ge=-200, le=200, default=0)]
 

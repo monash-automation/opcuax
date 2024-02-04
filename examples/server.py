@@ -2,8 +2,7 @@ import asyncio
 import logging
 
 from examples.printer import Printer, Temperature
-from opcuax import OpcuaObjects, OpcuaServer
-from opcuax.settings import OpcuaServerSettings
+from opcuax import OpcuaObjects, OpcuaServer, OpcuaServerSettings
 
 
 # objects we want to create in the OPC UA server

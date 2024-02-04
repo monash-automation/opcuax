@@ -85,8 +85,7 @@ To create a server, we need to specify an endpoint, name of the server and a nam
 This can be done by either using a settings object:
 
 ```python
-from opcuax import OpcuaServer
-from opcuax.settings import OpcuaServerSettings
+from opcuax import OpcuaServer, OpcuaServerSettings
 
 settings = OpcuaServerSettings(
     opcua_server_url="opc.tcp://localhost:4840",
@@ -160,8 +159,7 @@ async def create_objects(server: OpcuaServer):
 Similar to server, we can create a client by either using a settings object:
 
 ```python
-from opcuax import OpcuaClient
-from opcuax.settings import OpcuaClientSettings
+from opcuax import OpcuaClient, OpcuaClientSettings
 
 settings = OpcuaClientSettings(
     opcua_server_url="opc.tcp://localhost:4840",
