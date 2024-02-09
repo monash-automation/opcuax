@@ -3,16 +3,10 @@ from inspect import isawaitable
 
 import flatdict
 import redis.asyncio as redis
-from opcuax import OpcuaObjects
 from pydantic import BaseModel
 
 from examples.client import build_client_from_settings
 from examples.printer import Printer
-
-
-class Printers(OpcuaObjects):
-    printer1: Printer
-    printer2: Printer
 
 
 async def redis_worker() -> None:
@@ -26,11 +20,12 @@ async def redis_worker() -> None:
         await coro
 
     async with opcua_client, redis_client:
-        printers = await opcua_client.read_objects(Printers)
+        printer1 = await opcua_client.get(Printer, "Printer1")
+        printer2 = await opcua_client.get(Printer, "Printer2")
 
         async with asyncio.TaskGroup() as tg:
-            tg.create_task(cache(printers.printer1, "printer1"))
-            tg.create_task(cache(printers.printer1, "printer2"))
+            tg.create_task(cache(printer1, "Printer1"))
+            tg.create_task(cache(printer2, "Printer2"))
 
 
 if __name__ == "__main__":

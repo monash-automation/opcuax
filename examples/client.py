@@ -27,12 +27,19 @@ async def run_client() -> None:
 
     async with client:
         # read object values
-        desk = await client.read_objects(Desk)
-        print(desk.model_dump_json())
+        printer1 = await client.get(Printer, "Printer1")
+        print(printer1.model_dump_json())
 
-        # update object values
-        desk.printer1.head = PrinterHead(x=5, y=10, z=15)
-        await client.update_objects(desk)
+        # update a field
+        await client.set(
+            Printer,
+            "Printer1",
+            PrinterHead(x=5, y=10, z=15),
+            lambda printer: printer.head,
+        )
+
+        # update all fields
+        await client.set(Printer, "Printer1", printer1)
 
 
 if __name__ == "__main__":

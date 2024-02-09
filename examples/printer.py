@@ -1,29 +1,30 @@
+from opcuax import OpcuaModel
 from pydantic import BaseModel, NonNegativeFloat
 
 
 class PrinterHead(BaseModel):
-    x: float
-    y: float
-    z: float
+    x: float = 0
+    y: float = 0
+    z: float = 0
 
 
 class PrinterJob(BaseModel):
     file: str = "N/A"
-    progress: NonNegativeFloat
-    time_left: NonNegativeFloat
-    time_left_approx: NonNegativeFloat
-    time_used: NonNegativeFloat
+    progress: NonNegativeFloat = 0
+    time_left: NonNegativeFloat = 9999
+    time_left_approx: NonNegativeFloat = 9999
+    time_used: NonNegativeFloat = 0
 
 
 class Temperature(BaseModel):
-    actual: NonNegativeFloat
-    target: NonNegativeFloat
+    actual: NonNegativeFloat = 0
+    target: NonNegativeFloat = 0
 
 
-class Printer(BaseModel):
-    state: str
-    nozzle: Temperature
-    bed: Temperature
+class Printer(OpcuaModel):
+    state: str = "N/A"
+    nozzle: Temperature = Temperature()
+    bed: Temperature = Temperature()
 
-    head: PrinterHead
-    job: PrinterJob
+    head: PrinterHead = PrinterHead()
+    job: PrinterJob = PrinterJob()
