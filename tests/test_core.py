@@ -2,7 +2,8 @@ from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-from opcuax import OpcuaServer
+from opcuax import OpcuaModel, OpcuaServer
+from pydantic import BaseModel
 
 from tests.models import Dog, Home
 
@@ -45,3 +46,20 @@ async def test_set_nested_variable(server: OpcuaServer) -> None:
     await server.set(Home, "SnoopyHome", "foo", lambda _home: _home.dog.name)
     _home = await server.get(Home, "SnoopyHome")
     assert _home.dog.name == "foo"
+
+
+async def test_fields_of_same_model_type(server: OpcuaServer) -> None:
+    class Person(BaseModel):
+        name: str
+
+    class Model(OpcuaModel):
+        mike: Person = Person(name="Mike")
+        bob: Person = Person(name="Bob")
+        carl: Person = Person(name="Carl")
+
+    await server.create(Model(), "model")
+    model: Model = await server.get(Model, "model")
+
+    assert model.mike.name == "Mike"
+    assert model.bob.name == "Bob"
+    assert model.carl.name == "Carl"

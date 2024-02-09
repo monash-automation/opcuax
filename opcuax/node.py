@@ -1,3 +1,4 @@
+import itertools
 from collections import namedtuple
 from typing import Any, NamedTuple
 
@@ -35,28 +36,35 @@ async def _write_value(self: NamedTuple, root: Node, obj: BaseModel) -> None:
         await node.write_value(root, value)
 
 
-def object_classname(cls: type[BaseModel]) -> str:
-    return f"_{cls.__name__}Object"
-
-
-# TODO: add root to class name to avoid name collision
-def make_object(cls: type[BaseModel], ns: int, path: str = "") -> tuple:
+def make_object(
+    cls: type[BaseModel],
+    ns: int,
+    browse_name: str = "",
+    parent_classname: str = "_Opcuax",
+) -> tuple:
     field_names, values = [], []
+    # in case multiple fields have same BaseModel type
+    identifier = itertools.count(start=1)
+
+    def object_classname(model_cls: type[BaseModel]) -> str:
+        return f"{parent_classname}{model_cls.__name__}{next(identifier)}"
+
+    classname = object_classname(cls)
 
     for name, field in cls.model_fields.items():
         field_cls = field.annotation
         assert field_cls is not None
 
         field_names.append(name)
-        browse_name = f"{path}/{ns}:{name}"
+        _browse_name = f"{browse_name}/{ns}:{name}"
 
         if issubclass(field_cls, BaseModel):
-            child_obj = make_object(field_cls, ns, browse_name)
+            child_obj = make_object(field_cls, ns, _browse_name, classname)
             values.append(child_obj)
         else:
-            values.append(Variable(browse_name, field_cls))
+            values.append(Variable(_browse_name, field_cls))
 
-    object_cls = namedtuple(object_classname(cls), field_names)
+    object_cls = namedtuple(classname, field_names)
 
     async def _read_value(self: NamedTuple, root: Node) -> Any:
         data = {
