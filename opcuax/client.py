@@ -3,7 +3,6 @@ from types import TracebackType
 from asyncua import Client
 
 from .core import Opcuax
-from .node import OpcuaObjNode
 from .settings import EnvOpcuaClientSettings, OpcuaClientSettings
 
 
@@ -31,7 +30,6 @@ class OpcuaClient(Opcuax):
         await self.client.__aenter__()
         self.namespace = await self.client.get_namespace_index(self.namespace_uri)
         self.ua_objects_node = self.client.get_objects_node()
-        self.objects_node = OpcuaObjNode("Objects", self.ua_objects_node, 0)
         return self
 
     async def __aexit__(
