@@ -4,7 +4,7 @@ from typing import Annotated
 from opcuax import (
     OpcuaClient,
     OpcuaClientSettings,
-    OpcuaObjects,
+    OpcuaModel,
     OpcuaServer,
     OpcuaServerSettings,
 )
@@ -18,29 +18,23 @@ class Trackable(BaseModel):
 
 
 class Position(BaseModel):
-    x: LabPos
-    y: LabPos
+    x: LabPos = 0
+    y: LabPos = 0
 
 
 class Job(BaseModel):
     filename: str = ""
-    time_used: NonNegativeInt
+    time_used: NonNegativeInt = 0
 
 
-class Printer(Trackable):
+class Printer(OpcuaModel):
     state: str = "Unknown"
-    latest_job: Job
+    latest_job: Job = Job()
 
 
-class Robot(Trackable):
-    position: Position
+class Robot(OpcuaModel):
+    position: Position = Position()
     up_time: NonNegativeInt = 0
-
-
-class Lab(OpcuaObjects):
-    printer1: Printer
-    printer2: Printer
-    robot: Robot
 
 
 def build_server() -> OpcuaServer:
@@ -62,35 +56,39 @@ def build_client() -> OpcuaClient:
 
 async def run_server(server: OpcuaServer) -> None:
     async with server:
-        await server.create_objects(Lab)
+        await server.create(Printer(), "Printer1")
+        await server.create(Printer(), "Printer2")
+        await server.create(Robot(), "Robot")
 
-        lab = await server.read_objects(Lab)
-        print(lab.model_dump_json())
+        printer1: Printer = await server.get(Printer, "Printer1")
+        print(printer1.model_dump_json())
 
-        lab.robot.position = Position(x=100.0, y=100.0)
-        await server.update_objects(lab)
+        printer1.state = "Ready"
+        await server.set(Printer, "Printer1", printer1)
+        await server.set(Printer, "Printer1", "Ready", lambda printer: printer.state)
+
+        filename = await server.get(
+            Printer, "Printer1", lambda printer: printer.latest_job.filename
+        )
+        job = await server.get(Printer, "Printer1", lambda printer: printer.latest_job)
+        assert filename == job.filename
 
         await server.loop()
-
-
-class Printers(OpcuaObjects):
-    printer1: Printer
-    robot: Robot
 
 
 async def run_client(client: OpcuaClient) -> None:
     await asyncio.sleep(2)  # wait until server is ready
 
     async with client:
-        printers = await client.read_objects(Printers)
-        print(printers.model_dump_json())
+        printer1 = await client.get(Printer, "Printer1")
+        print(printer1.model_dump_json())
 
-        printers.printer1.state = "Printing"
-        printers.printer1.latest_job.filename = "A.gcode"
-        await client.update_objects(printers)
-
-        printers = await client.read_objects(Printers)
-        print(printers.model_dump_json())
+        await client.set(
+            Printer,
+            "Printer1",
+            Job(filename="A.gcode", time_used=1),
+            lambda printer: printer.latest_job,
+        )
 
 
 async def main() -> None:

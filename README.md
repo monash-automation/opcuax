@@ -26,11 +26,16 @@ Suppose we want to run an OPC UA server to record latest data of printers and ro
 ### Create Models
 
 We first convert the requirement to Python classes using Pydantic `BaseModel`.
+Note we extend class `OpcuaModel` for `Printer` and `Robot`.
+`OpcuaModel` is a subclass of `BaseModel`, `opcuax` will treat `OpcuaModel`s
+as OPC UA object types.
 
 ```python
 from typing import Annotated
 
 from pydantic import BaseModel, NonNegativeInt, Field, IPvAnyAddress
+
+from opcuax import OpcuaModel
 
 LabPos = Annotated[float, Field(ge=-200, le=200, default=0)]
 
@@ -40,43 +45,23 @@ class Trackable(BaseModel):
 
 
 class Position(BaseModel):
-    x: LabPos
-    y: LabPos
+    x: LabPos = 0
+    y: LabPos = 0
 
 
 class Job(BaseModel):
     filename: str = ""
-    time_used: NonNegativeInt
+    time_used: NonNegativeInt = 0
 
 
-class Printer(Trackable):
+class Printer(OpcuaModel):
     state: str = "Unknown"
-    latest_job: Job
+    latest_job: Job = Job()
 
 
-class Robot(Trackable):
-    position: Position
+class Robot(OpcuaModel):
+    position: Position = Position()
     up_time: NonNegativeInt = 0
-```
-
-#### Important
-
-You cannot declare **nullable** types because OPC UA doesn't support `null` value for variables and objects.
-`opcuax` set default values for primitive types (`str -> ""`, `int -> 0`, `float -> 0`, `bool -> False`),
-but it is recommended that you declare meaningful default values in classes.
-
-### Declare OPC UA Objects
-
-Next we create a subclass of `OpcuaObjects` to represent objects we want to crate in the OPC UA server.
-
-```python
-from opcuax.models import OpcuaObjects
-
-
-class Lab(OpcuaObjects):
-    printer1: Printer
-    printer2: Printer
-    robot: Robot
 ```
 
 ### Setup Server
@@ -115,9 +100,13 @@ With a server we can create printer and robot objects
 from opcuax import OpcuaServer
 
 
-async def create_objects(server: OpcuaServer):
+async def main(server: OpcuaServer):
     async with server:
-        await server.create_objects(Lab)
+        # Create objects under node "0:/Root/0:Objects"
+        # Create an object of type Printer named Printer1
+        await server.create(Printer(), "Printer1")
+        await server.create(Printer(), "Printer2")
+        await server.create(Robot(), "Robot")
 
         await server.loop()
 ```
@@ -125,33 +114,50 @@ async def create_objects(server: OpcuaServer):
 Now you can verify objects creation by connecting the endpoint in your OPC UA client,
 or try [opcua-client-gui](https://github.com/FreeOpcUa/opcua-client-gui) if you don't have one.
 
-![tutorial-example.png](examples/tutorial_example.png)
+![objects-example.png](examples/tutorial_example_objects.png)
+
+Also check 2 created object types under `0:Root/0:Types/0:ObjectTypes/0:BaseObjectType`
+
+![object-types-example.png](examples/tutorial_example_object_types.png)
 
 #### Important
 
 You must call `create_objects` inside an `async with` block, which is required by the
 server to prepare itself (init variables, setup endpoint, register namespace, listen to target port...).
 
-#### Read and Update Object Values
-
-We can call `read_objects` to get latest values of all objects,
-and call `update_objects` to update the server after local modification.
+#### Read All Fields of an Object
 
 ```python
-from opcuax import OpcuaServer
+async def read_object(server: OpcuaServer):
+    printer1 = await server.get(Printer, "Printer1")
+    print(printer1.model_dump_json())
+```
 
+#### Read Single Field of an Object
 
-async def create_objects(server: OpcuaServer):
-    async with server:
-        await server.create_objects(Lab)
+If we want to read a certain node, we can use a lambda expression to specify the target node.
+This also works for an object node, which is not allowed in `asyncua`.
 
-        lab = await server.read_objects(Lab)
-        print(lab.model_dump_json())
+```python
+async def read_field(server: OpcuaServer):
+    filename = await server.get(Printer, "Printer1", lambda printer: printer.latest_job.filename)
+    job = await server.get(Printer, "Printer1", lambda printer: printer.latest_job)
+    assert filename == job.filename
+```
 
-        lab.robot.position = Position(x=100.0, y=100.0)
-        await server.update_objects(lab)
+### Update All Fields of an Object
 
-        await server.loop()
+```python
+async def update_object(server: OpcuaServer, printer1: Printer):
+    await server.set(Printer, "Printer1", printer1)
+    await server.set(Printer, "Printer1", "Ready", lambda printer: printer.state)
+```
+
+#### Update Single Field of an Object
+
+```python
+async def update_field(server: OpcuaServer):
+    await server.set(Printer, "Printer1", "Ready", lambda printer: printer.state)
 ```
 
 ### Client
@@ -183,29 +189,26 @@ client = OpcuaClient.from_env(env_file=".env")
 
 #### Read and Update Object Values
 
-This part is almost same as working with a server, except that you don't need to
-include all objects in the `OpcuaObjects` class unless you need to work with all of them.
+This part is same as working with a server, except you use `OpcuaClient.get` and `OpcuaClient.set` functions.
 
 ```python
-from opcuax import OpcuaClient, OpcuaObjects
+from opcuax import OpcuaClient
 
 
-class Printers(OpcuaObjects):
-    printer1: Printer
-    robot: Robot
-
-
-async def run_client(client: OpcuaClient):
+async def main(client: OpcuaClient):
     # wait until server is ready if you run server and client in one program
     await asyncio.sleep(2)
 
     async with client:
-        printers = await client.read_objects(Printers)
-        print(printers.model_dump_json())
+        printer1 = await client.get(Printer, "Printer1")
+    print(printer1.model_dump_json())
 
-        printers.printer1.state = "Printing"
-        printers.printer1.latest_job.filename = "A.gcode"
-        await client.update_objects(printers)
+    await client.set(
+        Printer,
+        "Printer1",
+        Job(filename="A.gcode", time_used=1),
+        lambda printer: printer.latest_job,
+    )
 ```
 
 ## Contribute
