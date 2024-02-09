@@ -216,12 +216,6 @@ async def main(client: OpcuaClient):
 Please open an issue before coding in case you waste time on unwanted changes,
 and follow the [contribution guideline](./CONTRIBUTING.md)
 
-## TODO
-
-* [ ] Only update outdated node
-* [ ] Only read/write selected object by `Lab.printer1`
-* [ ] Concurrent friendly API
-
 ## Resources
 
 * [OPC UA Document](https://reference.opcfoundation.org/)
