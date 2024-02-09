@@ -125,7 +125,7 @@ Also check 2 created object types under `0:Root/0:Types/0:ObjectTypes/0:BaseObje
 You must call `create_objects` inside an `async with` block, which is required by the
 server to prepare itself (init variables, setup endpoint, register namespace, listen to target port...).
 
-#### Read All Fields of an Object
+### Read All Fields of an Object
 
 ```python
 async def read_object(server: OpcuaServer):
@@ -133,7 +133,7 @@ async def read_object(server: OpcuaServer):
     print(printer1.model_dump_json())
 ```
 
-#### Read Single Field of an Object
+### Read Single Field of an Object
 
 If we want to read a certain node, we can use a lambda expression to specify the target node.
 This also works for an object node, which is not allowed in `asyncua`.
@@ -153,14 +153,14 @@ async def update_object(server: OpcuaServer, printer1: Printer):
     await server.set(Printer, "Printer1", "Ready", lambda printer: printer.state)
 ```
 
-#### Update Single Field of an Object
+### Update Single Field of an Object
 
 ```python
 async def update_field(server: OpcuaServer):
     await server.set(Printer, "Printer1", "Ready", lambda printer: printer.state)
 ```
 
-### Client
+### Setup Client
 
 Similar to server, we can create a client by either using a settings object:
 
@@ -187,7 +187,7 @@ from opcuax import OpcuaClient
 client = OpcuaClient.from_env(env_file=".env")
 ```
 
-#### Read and Update Object Values
+### Read and Update Object Values
 
 This part is same as working with a server, except you use `OpcuaClient.get` and `OpcuaClient.set` functions.
 
