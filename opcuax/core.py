@@ -7,10 +7,8 @@ from typing import Any, ClassVar, TypeVar
 from asyncua import Node
 from pydantic import BaseModel
 
-from .models import OpcuaObjects
 from .node import make_object
 
-_OpcuaObjects = TypeVar("_OpcuaObjects", bound=OpcuaObjects)
 _UndefinedNode: tuple = ()
 
 
