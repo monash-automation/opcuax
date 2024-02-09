@@ -4,6 +4,8 @@ from typing import Any, NamedTuple
 from asyncua import Node, ua
 from pydantic import BaseModel
 
+from opcuax.values import python_value
+
 
 class Variable:
     __slots__ = ("browse_name", "cls")
@@ -15,7 +17,7 @@ class Variable:
     async def read_value(self, root: Node) -> Any:
         node = await root.get_child(self.browse_name)
         value = await node.read_value()
-        return self.cls(value)
+        return python_value(self.cls, value)
 
     async def write_value(self, root: Node, value: Any) -> None:
         opcua_value = value

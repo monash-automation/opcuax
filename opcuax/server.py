@@ -7,7 +7,7 @@ from pydantic.fields import FieldInfo
 
 from .core import Opcuax, _OpcuaModel
 from .settings import EnvOpcuaServerSettings, OpcuaServerSettings
-from .values import opcua_default_value
+from .values import ua_variant
 
 
 class OpcuaServer(Opcuax):
@@ -53,15 +53,9 @@ class OpcuaServer(Opcuax):
             await asyncio.sleep(self.interval)
 
     async def __add_variable(self, parent: Node, name: str, field: FieldInfo) -> Node:
-        value = opcua_default_value(field)
-        assert field.annotation is not None
+        variant_type, value = ua_variant(field)
 
-        if issubclass(field.annotation, float):
-            var = await parent.add_variable(
-                self.namespace, name, value, varianttype=ua.VariantType.Float
-            )
-        else:
-            var = await parent.add_variable(self.namespace, name, value)
+        var = await parent.add_variable(self.namespace, name, value, variant_type)
         await var.set_modelling_rule(True)
         await var.set_writable(True)
         return var
