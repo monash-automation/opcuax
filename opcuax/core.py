@@ -1,15 +1,28 @@
 import logging
 from abc import ABC
+from collections.abc import Callable
 from logging import Logger
-from typing import TypeVar
+from typing import Any, ClassVar, TypeVar
 
 from asyncua import Node
 from pydantic import BaseModel
 
 from .models import OpcuaObjects
-from .node import OpcuaObjNode, OpcuaVarNode
+from .node import OpcuaObjNode, OpcuaVarNode, make_object
 
 _OpcuaObjects = TypeVar("_OpcuaObjects", bound=OpcuaObjects)
+_Undefined: tuple = ()
+
+
+class OpcuaModel(BaseModel):
+    __node__: ClassVar[tuple] = _Undefined
+
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs: dict[str, Any]) -> None:
+        print(f"pydantic init subclass {cls.__name__}")
+
+
+_OpcuaModel = TypeVar("_OpcuaModel", bound="OpcuaModel")
 
 
 class Opcuax(ABC):
@@ -60,3 +73,25 @@ class Opcuax(ABC):
 
     async def update_objects(self, objects: _OpcuaObjects) -> None:
         await self.objects_node.write_values(objects.model_dump())
+
+    def create_node_tree(self, cls: type[_OpcuaModel]) -> None:
+        if cls.__node__ is _Undefined:
+            cls.__node__ = make_object(cls, self.namespace)
+
+    async def get(
+        self, name: str, cls: type[OpcuaModel], expr: Callable[[OpcuaModel], Any]
+    ) -> Any:
+        node = expr(cls.__node__)
+        root = await self.objects_node.ua_node.get_child(f"{self.namespace}:{name}")
+        return await node.read_value(root)
+
+    async def set(
+        self,
+        name: str,
+        cls: type[OpcuaModel],
+        value: Any,
+        expr: Callable[[OpcuaModel], Any],
+    ) -> None:
+        node = expr(cls.__node__)
+        root = await self.objects_node.ua_node.get_child(f"{self.namespace}:{name}")
+        await node.write_value(root, value)

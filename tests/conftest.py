@@ -4,7 +4,7 @@ import pytest
 import pytest_asyncio
 from opcuax import OpcuaClient, OpcuaServer
 
-from .models import Pets
+from .models import Dog
 
 
 @pytest.fixture
@@ -27,10 +27,16 @@ async def server(endpoint: str, namespace: str) -> AsyncGenerator[OpcuaServer, N
         yield server
 
 
-@pytest_asyncio.fixture
-async def pet_server(server: OpcuaServer) -> AsyncGenerator[OpcuaServer, None]:
-    await server.create_objects(Pets)
+@pytest.fixture
+def snoopy() -> Dog:
+    return Dog(name="snoopy", age=74, weight=10)
 
+
+@pytest_asyncio.fixture
+async def pet_server(
+    server: OpcuaServer, snoopy: Dog
+) -> AsyncGenerator[OpcuaServer, None]:
+    await server.create(snoopy, name="Snoopy")
     yield server
 
 

@@ -1,33 +1,13 @@
-from opcuax.models import OpcuaObjects
-from pydantic import BaseModel
+from opcuax import OpcuaModel
 
 
-class PetOwner(BaseModel):
+class PetOwner(OpcuaModel):
     name: str
     address: str
 
 
-class Pet(BaseModel):
+class Dog(OpcuaModel):
     name: str
     age: int
     weight: float
-
-    owner: PetOwner
-
-
-class Dog(Pet):
-    food: str
-
-
-class Puppy(Dog):
-    birthday: str
-
-
-class Home(BaseModel):
-    dog1: Puppy
-    dog2: Puppy
-
-
-class Pets(OpcuaObjects):
-    kitty: Pet
-    puppy: Puppy
+    # birthday: PastDate

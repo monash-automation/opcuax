@@ -5,7 +5,7 @@ from asyncua import Node, Server, ua
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 
-from .core import Opcuax, _OpcuaObjects
+from .core import Opcuax, _OpcuaModel, _OpcuaObjects
 from .node import OpcuaObjNode
 from .settings import EnvOpcuaServerSettings, OpcuaServerSettings
 from .values import opcua_default_value
@@ -72,7 +72,7 @@ class OpcuaServer(Opcuax):
         await node.set_modelling_rule(True)
         return node
 
-    async def create_ua_object_type(self, model_cls: type[BaseModel]) -> Node:
+    async def create_ua_object_type(self, model_cls: type[_OpcuaModel]) -> Node:
         if model_cls in self.object_type_nodes:
             return self.object_type_nodes[model_cls]
 
@@ -94,13 +94,14 @@ class OpcuaServer(Opcuax):
         await dfs(model_cls, type_node)
 
         self.object_type_nodes[model_cls] = type_node
+        self.create_node_tree(model_cls)
         return type_node
 
-    async def create_ua_object(self, cls: type[BaseModel], name: str) -> None:
+    async def create_ua_object(self, cls: type[BaseModel], name: str) -> Node:
         if cls not in self.object_type_nodes:
             await self.create_ua_object_type(cls)
 
-        await self.ua_objects_node.add_object(
+        return await self.ua_objects_node.add_object(
             self.namespace, name, objecttype=self.object_type_nodes[cls].nodeid
         )
 
@@ -117,6 +118,10 @@ class OpcuaServer(Opcuax):
     async def create_objects(self, cls: type[_OpcuaObjects]) -> None:
         await self.create_ua_objects(cls)
         await self.create_opcua_nodes(cls)
+
+    async def create(self, model: _OpcuaModel, name: str) -> None:
+        root = await self.create_ua_object(type(model), name=name)
+        await model.__node__.write_value(root, model)
 
     async def __aenter__(self) -> "OpcuaServer":
         await self.server.init()
