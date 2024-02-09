@@ -211,6 +211,12 @@ async def main(client: OpcuaClient):
     )
 ```
 
+## Editor Support
+
+Returned type of `get` function can be inferred with a [pyright](https://github.com/microsoft/pyright) server.
+
+![editor-support.png](examples/editor-support.png)
+
 ## Contribute
 
 Please open an issue before coding in case you waste time on unwanted changes,
