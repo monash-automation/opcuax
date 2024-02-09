@@ -7,10 +7,8 @@ OpcuaUrl = Annotated[AnyUrl, UrlConstraints(allowed_schemes=["opc.tcp"])]
 
 
 class Settings(BaseSettings):
-    opcua_server_url: OpcuaUrl = OpcuaUrl("opc.tcp://localhost:4840")
-    opcua_server_namespace: HttpUrl = HttpUrl(
-        "https://github.com/monash-automation/opcuax"
-    )
+    opcua_server_url: OpcuaUrl
+    opcua_server_namespace: HttpUrl
 
 
 class OpcuaServerSettings(Settings):

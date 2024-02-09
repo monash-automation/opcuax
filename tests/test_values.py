@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from ipaddress import IPv4Address, IPv6Address
 from pathlib import Path
 from typing import Annotated
 
@@ -8,8 +9,10 @@ from pydantic import (
     DirectoryPath,
     Field,
     FutureDate,
+    IPvAnyAddress,
     NonNegativeFloat,
     PastDate,
+    PastDatetime,
     RedisDsn,
 )
 
@@ -34,7 +37,7 @@ async def test_default_date(server: OpcuaServer) -> None:
 
 async def test_date_default_factory(server: OpcuaServer) -> None:
     class Model(OpcuaModel):
-        val: date = Field(default_factory=lambda: date.today())
+        val: date = Field(default_factory=date.today)
 
     await server.create(Model(), "model")
     model = await server.get(Model, "model")
@@ -42,8 +45,18 @@ async def test_date_default_factory(server: OpcuaServer) -> None:
     assert model.val == date.today()
 
 
+async def test_datetime_default_factory(server: OpcuaServer) -> None:
+    class Model(OpcuaModel):
+        val: datetime = Field(default_factory=datetime.now)
+
+    await server.create(Model(), "model")
+    model = await server.get(Model, "model")
+
+    assert model.val < datetime.now()
+
+
 async def test_default_datetime(server: OpcuaServer) -> None:
-    t = datetime(2012, 12, 1, 23, 45, 59)
+    t = datetime.now()
 
     class Model(OpcuaModel):
         val: datetime = t
@@ -59,6 +72,18 @@ async def test_past_date(server: OpcuaServer) -> None:
 
     class Model(OpcuaModel):
         val: Annotated[date, PastDate()]
+
+    await server.create(Model(val=t), "model")
+    model = await server.get(Model, "model")
+
+    assert model.val == t
+
+
+async def test_past_datetime(server: OpcuaServer) -> None:
+    t = datetime.now()
+
+    class Model(OpcuaModel):
+        val: Annotated[datetime, PastDatetime(), Field(default_factory=datetime.now)]
 
     await server.create(Model(val=t), "model")
     model = await server.get(Model, "model")
@@ -100,6 +125,42 @@ async def test_redis_url(server: OpcuaServer) -> None:
     model = await server.get(Model, "model")
 
     assert str(model.val) == url
+
+
+async def test_ip_any_address(server: OpcuaServer) -> None:
+    addr = "192.168.0.1"
+
+    class Model(OpcuaModel):
+        val: IPvAnyAddress
+
+    await server.create(Model(val=addr), "model")
+    model = await server.get(Model, "model")
+
+    assert str(model.val) == addr
+
+
+async def test_ipv4_address(server: OpcuaServer) -> None:
+    addr = IPv4Address("192.168.0.1")
+
+    class Model(OpcuaModel):
+        val: IPv4Address
+
+    await server.create(Model(val=addr), "model")
+    model = await server.get(Model, "model")
+
+    assert model.val == addr
+
+
+async def test_ipv6_address(server: OpcuaServer) -> None:
+    addr = IPv6Address("2001:db8:3333:4444:5555:6666:7777:8888")
+
+    class Model(OpcuaModel):
+        val: IPv6Address
+
+    await server.create(Model(val=addr), "model")
+    model = await server.get(Model, "model")
+
+    assert model.val == addr
 
 
 async def test_path(server: OpcuaServer) -> None:

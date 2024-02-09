@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 from typing import Annotated
 
 from opcuax import (
@@ -8,13 +9,15 @@ from opcuax import (
     OpcuaServer,
     OpcuaServerSettings,
 )
-from pydantic import BaseModel, Field, IPvAnyAddress, NonNegativeInt
+from pydantic import BaseModel, Field, IPvAnyAddress, NonNegativeInt, PastDatetime
 
 LabPos = Annotated[float, Field(ge=-200, le=200, default=0)]
+UpdateTime = Annotated[datetime, PastDatetime(), Field(default_factory=datetime.now)]
 
 
-class Trackable(BaseModel):
-    ip: IPvAnyAddress = IPvAnyAddress("127.0.0.1")
+class Trackable(OpcuaModel):
+    ip: IPvAnyAddress = "127.0.0.1"
+    last_update: UpdateTime
 
 
 class Position(BaseModel):
@@ -27,12 +30,12 @@ class Job(BaseModel):
     time_used: NonNegativeInt = 0
 
 
-class Printer(OpcuaModel):
+class Printer(Trackable):
     state: str = "Unknown"
     latest_job: Job = Job()
 
 
-class Robot(OpcuaModel):
+class Robot(Trackable):
     position: Position = Position()
     up_time: NonNegativeInt = 0
 
@@ -77,7 +80,7 @@ async def run_server(server: OpcuaServer) -> None:
 
 
 async def run_client(client: OpcuaClient) -> None:
-    await asyncio.sleep(2)  # wait until server is ready
+    await asyncio.sleep(3)  # wait until server is ready
 
     async with client:
         printer1 = await client.get(Printer, "Printer1")

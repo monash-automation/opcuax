@@ -16,32 +16,38 @@ Suppose we want to run an OPC UA server to record latest data of printers and ro
 
 * Printers
     * ip address
+    * last update time
     * current state
     * latest job (time used in seconds, filename)
 * Robot
     * ip address
+    * last update time
     * current position (`(x, y)` both in range `[-200, 200]`)
     * uptime (in seconds)
 
 ### Create Models
 
 We first convert the requirement to Python classes using Pydantic `BaseModel`.
-Note we extend class `OpcuaModel` for `Printer` and `Robot`.
-`OpcuaModel` is a subclass of `BaseModel`, `opcuax` will treat `OpcuaModel`s
-as OPC UA object types.
+
+Note we extend class `OpcuaModel` in `Printer` and `Robot`
+(through a base class `Trackable` to reuse common fields).
+`opcuax` will treat `OpcuaModel` subclasses as OPC UA object types for object node creation.
+`OpcuaModel` itself is a subclass of `BaseModel` with all Pydantic features.
 
 ```python
+from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, NonNegativeInt, Field, IPvAnyAddress
+from pydantic import BaseModel, NonNegativeInt, Field, IPvAnyAddress, PastDatetime
 
 from opcuax import OpcuaModel
 
-LabPos = Annotated[float, Field(ge=-200, le=200, default=0)]
+UpdateTime = Annotated[datetime, PastDatetime(), Field(default_factory=datetime.now)]
 
 
-class Trackable(BaseModel):
-    ip: IPvAnyAddress = IPvAnyAddress("127.0.0.1")
+class Trackable(OpcuaModel):
+    ip: IPvAnyAddress = "127.0.0.1"
+    last_update: UpdateTime
 
 
 class Position(BaseModel):
@@ -54,12 +60,12 @@ class Job(BaseModel):
     time_used: NonNegativeInt = 0
 
 
-class Printer(OpcuaModel):
+class Printer(Trackable):
     state: str = "Unknown"
     latest_job: Job = Job()
 
 
-class Robot(OpcuaModel):
+class Robot(Trackable):
     position: Position = Position()
     up_time: NonNegativeInt = 0
 ```
