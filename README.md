@@ -42,12 +42,12 @@ from pydantic import BaseModel, NonNegativeInt, Field, IPvAnyAddress, PastDateti
 
 from opcuax import OpcuaModel
 
-UpdateTime = Annotated[datetime, PastDatetime(), Field(default_factory=datetime.now)]
+UpdateTime = Annotated[datetime, PastDatetime()]
 
 
 class Trackable(OpcuaModel):
     ip: IPvAnyAddress = "127.0.0.1"
-    last_update: UpdateTime
+    last_update: UpdateTime = Field(default_factory=datetime.now)
 
 
 class Position(BaseModel):
@@ -103,19 +103,24 @@ server = OpcuaServer.from_env(env_file=".env")
 With a server we can create printer and robot objects
 
 ```python
-from opcuax import OpcuaServer
+from opcuax import OpcuaServer, OpcuaObject
 
 
 async def main(server: OpcuaServer):
     async with server:
         # Create objects under node "0:/Root/0:Objects"
         # Create an object of type Printer named Printer1
-        await server.create(Printer(), "Printer1")
+        obj: OpcuaObject[Printer] = await server.create(
+            Printer(), "Printer1"
+        )
         await server.create(Printer(), "Printer2")
         await server.create(Robot(), "Robot")
 
         await server.loop()
 ```
+
+`create` function returns an `OpcuaObject` instance which acts
+as a proxy to read/update OPC UA nodes.
 
 Now you can verify objects creation by connecting the endpoint in your OPC UA client,
 or try [opcua-client-gui](https://github.com/FreeOpcUa/opcua-client-gui) if you don't have one.
@@ -134,8 +139,8 @@ server to prepare itself (init variables, setup endpoint, register namespace, li
 ### Read All Fields of an Object
 
 ```python
-async def read_object(server: OpcuaServer):
-    printer1 = await server.get(Printer, "Printer1")
+async def read_object(obj: OpcuaObject[Printer]):
+    printer1 = await obj.get()
     print(printer1.model_dump_json())
 ```
 
@@ -145,25 +150,25 @@ If we want to read a certain node, we can use a lambda expression to specify the
 This also works for an object node, which is not allowed in `asyncua`.
 
 ```python
-async def read_field(server: OpcuaServer):
-    filename = await server.get(Printer, "Printer1", lambda printer: printer.latest_job.filename)
-    job = await server.get(Printer, "Printer1", lambda printer: printer.latest_job)
+async def read_field(obj: OpcuaObject[Printer]):
+    filename = await obj.get(lambda printer: printer.latest_job.filename)
+    job = await obj.get(lambda printer: printer.latest_job)
     assert filename == job.filename
 ```
 
 ### Update All Fields of an Object
 
 ```python
-async def update_object(server: OpcuaServer, printer1: Printer):
-    await server.set(Printer, "Printer1", printer1)
-    await server.set(Printer, "Printer1", "Ready", lambda printer: printer.state)
+async def update_object(obj: OpcuaObject[Printer]):
+    await obj.set(printer1)
+    await obj.set("Ready", lambda printer: printer.state)
 ```
 
 ### Update Single Field of an Object
 
 ```python
-async def update_field(server: OpcuaServer):
-    await server.set(Printer, "Printer1", "Ready", lambda printer: printer.state)
+async def update_field(obj: OpcuaObject[Printer]):
+    await obj.set("Ready", lambda printer: printer.state)
 ```
 
 ### Setup Client
@@ -198,7 +203,7 @@ client = OpcuaClient.from_env(env_file=".env")
 This part is same as working with a server, except you use `OpcuaClient.get` and `OpcuaClient.set` functions.
 
 ```python
-from opcuax import OpcuaClient
+from opcuax import OpcuaClient, OpcuaObject
 
 
 async def main(client: OpcuaClient):
@@ -206,15 +211,17 @@ async def main(client: OpcuaClient):
     await asyncio.sleep(2)
 
     async with client:
-        printer1 = await client.get(Printer, "Printer1")
-    print(printer1.model_dump_json())
+      # read object values
+      obj: OpcuaObject[Printer] = client.get_object(Printer, "Printer1")
 
-    await client.set(
-        Printer,
-        "Printer1",
-        Job(filename="A.gcode", time_used=1),
-        lambda printer: printer.latest_job,
-    )
+      printer1 = await obj.get()
+      print(printer1.model_dump_json())
+
+      # update a field
+      await obj.set(PrinterHead(x=5, y=10, z=15), lambda printer: printer.head)
+
+      # update all fields
+      await obj.set(printer1)
 ```
 
 ## Editor Support

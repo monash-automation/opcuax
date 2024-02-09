@@ -5,7 +5,7 @@ from asyncua import Node, Server, ua
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 
-from .core import Opcuax, _OpcuaModel
+from .core import OpcuaObject, Opcuax, _OpcuaModel
 from .settings import EnvOpcuaServerSettings, OpcuaServerSettings
 from .values import ua_variant
 
@@ -98,9 +98,10 @@ class OpcuaServer(Opcuax):
             self.namespace, name, objecttype=self.object_type_nodes[cls].nodeid
         )
 
-    async def create(self, model: _OpcuaModel, name: str) -> None:
+    async def create(self, model: _OpcuaModel, name: str) -> OpcuaObject:
         root = await self.create_ua_object(type(model), name=name)
         await model.__node__.write_value(root, model)
+        return self.get_object(type(model), name)
 
     async def __aenter__(self) -> "OpcuaServer":
         await self.server.init()

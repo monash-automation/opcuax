@@ -2,7 +2,7 @@ from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-from opcuax import OpcuaModel, OpcuaServer
+from opcuax import OpcuaModel, OpcuaObject, OpcuaServer
 from pydantic import BaseModel
 
 from tests.models import Dog, Home
@@ -21,30 +21,40 @@ async def server(
     yield pet_server
 
 
-async def test_get(server: OpcuaServer, home: Home) -> None:
-    value = await server.get(Home, "SnoopyHome")
+@pytest.fixture
+def home_object(server: OpcuaServer) -> OpcuaObject[Home]:
+    return server.get_object(Home, "SnoopyHome")
+
+
+@pytest.fixture
+def dog_object(server: OpcuaServer) -> OpcuaObject[Dog]:
+    return server.get_object(Dog, "Snoopy")
+
+
+async def test_get(home_object: OpcuaObject[Home], home: Home) -> None:
+    value = await home_object.get()
     assert value == home
 
 
-async def test_get_variable(server: OpcuaServer, snoopy: Dog) -> None:
-    value = await server.get(Dog, "Snoopy", lambda dog: dog.name)
+async def test_get_variable(dog_object: OpcuaObject[Dog], snoopy: Dog) -> None:
+    value = await dog_object.get(lambda dog: dog.name)
     assert value == snoopy.name
 
 
-async def test_get_nested_variable(server: OpcuaServer, snoopy: Dog) -> None:
-    value = await server.get(Home, "SnoopyHome", lambda _home: _home.dog.name)
+async def test_get_nested_variable(home_object: OpcuaObject[Home], snoopy: Dog) -> None:
+    value = await home_object.get(lambda _home: _home.dog.name)
     assert value == snoopy.name
 
 
-async def test_set_variable(server: OpcuaServer) -> None:
-    await server.set(Dog, "Snoopy", "foo", lambda dog: dog.name)
-    value = await server.get(Dog, "Snoopy", lambda dog: dog.name)
+async def test_set_variable(dog_object: OpcuaObject[Dog]) -> None:
+    await dog_object.set("foo", lambda dog: dog.name)
+    value = await dog_object.get(lambda dog: dog.name)
     assert value == "foo"
 
 
-async def test_set_nested_variable(server: OpcuaServer) -> None:
-    await server.set(Home, "SnoopyHome", "foo", lambda _home: _home.dog.name)
-    _home = await server.get(Home, "SnoopyHome")
+async def test_set_nested_variable(home_object: OpcuaObject[Home]) -> None:
+    await home_object.set("foo", lambda _home: _home.dog.name)
+    _home = await home_object.get()
     assert _home.dog.name == "foo"
 
 
@@ -57,8 +67,8 @@ async def test_fields_of_same_model_type(server: OpcuaServer) -> None:
         bob: Person = Person(name="Bob")
         carl: Person = Person(name="Carl")
 
-    await server.create(Model(), "model")
-    model: Model = await server.get(Model, "model")
+    model_object = await server.create(Model(), "model")
+    model: Model = await model_object.get()
 
     assert model.mike.name == "Mike"
     assert model.bob.name == "Bob"
