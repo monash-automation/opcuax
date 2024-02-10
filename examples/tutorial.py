@@ -6,9 +6,9 @@ from opcuax import (
     OpcuaClient,
     OpcuaClientSettings,
     OpcuaModel,
-    OpcuaObject,
     OpcuaServer,
     OpcuaServerSettings,
+    fetch,
 )
 from pydantic import BaseModel, Field, IPvAnyAddress, NonNegativeInt, PastDatetime
 
@@ -60,20 +60,27 @@ def build_client() -> OpcuaClient:
 
 async def run_server(server: OpcuaServer) -> None:
     async with server:
-        obj: OpcuaObject[Printer] = await server.create(Printer(), "Printer1")
+        proxy: Printer = await server.create(Printer(), "Printer1")
         await server.create(Printer(), "Printer2")
         await server.create(Robot(), "Robot")
 
-        printer1: Printer = await obj.get()
+        # Read all nodes
+        printer1: Printer = await server.read(proxy)
         print(printer1.model_dump_json())
 
-        printer1.state = "Ready"
-        await obj.set(printer1)
-        await obj.set("Ready", lambda printer: printer.state)
+        # Read a subset of nodes
+        job = await server.read(proxy.latest_job)
+        assert printer1.latest_job == job
 
-        filename = await obj.get(lambda printer: printer.latest_job.filename)
-        job = await obj.get(lambda printer: printer.latest_job)
-        assert filename == job.filename
+        # The proxy object records all changes
+        proxy.latest_job.filename = "A.gcode"
+        # sync changes to server
+        await server.commit(proxy)
+
+        # WARNING: proxy = printer1 won't update all nodes to printer1
+        # instead the variable "proxy" is reference to printer1
+        # Please use the update function to update all nodes from a model
+        await server.update("Printer2", printer1)
 
         await server.loop()
 
@@ -82,14 +89,13 @@ async def run_client(client: OpcuaClient) -> None:
     await asyncio.sleep(3)  # wait until server is ready
 
     async with client:
-        obj: OpcuaObject[Printer] = client.get_object(Printer, "Printer1")
+        proxy = fetch(Printer, "Printer1")
 
-        printer1: Printer = await obj.get()
-        print(printer1.model_dump_json())
+        printer: Printer = await client.read(proxy)
+        print(printer.model_dump_json())
 
-        await obj.set(
-            Job(filename="A.gcode", time_used=1), lambda printer: printer.latest_job
-        )
+        proxy.latest_job = Job(filename="A.gcode", time_used=1)
+        await client.commit(proxy)
 
 
 async def main() -> None:
