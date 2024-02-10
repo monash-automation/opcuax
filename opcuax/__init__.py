@@ -1,4 +1,5 @@
 __all__ = [
+    "fetch",
     "OpcuaModel",
     "OpcuaServer",
     "OpcuaClient",
@@ -8,6 +9,6 @@ __all__ = [
 ]
 
 from .client import OpcuaClient
-from .core import OpcuaModel, OpcuaObject
+from .core import OpcuaModel, OpcuaObject, fetch
 from .server import OpcuaServer
 from .settings import OpcuaClientSettings, OpcuaServerSettings

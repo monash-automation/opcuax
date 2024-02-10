@@ -53,6 +53,12 @@ def ua_variant(field: FieldInfo) -> _UaVariant:
     return _UaVariant(variant_type, default)
 
 
+def opcua_value(value: Any) -> Any:
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
+
+
 def python_value(cls: type[Any], ua_value: Any) -> Any:
     if cls is date:
         return datetime.strptime(ua_value, __date_format)

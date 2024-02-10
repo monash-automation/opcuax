@@ -100,27 +100,30 @@ from opcuax import OpcuaServer
 server = OpcuaServer.from_env(env_file=".env")
 ```
 
-With a server we can create printer and robot objects
+With a server we can create a printer object by calling `server.create`.
+The server will return a **proxy** of the object node which can be used for
+reading and writing values.
+
+**WARNING**: although the proxy seems to have the same type of the model,
+but it is actually an instance of `_OpcuaxPrinter`, which is created
+dynamically at runtime.
 
 ```python
-from opcuax import OpcuaServer, OpcuaObject
+
+from examples.tutorial import Printer, Robot
+from opcuax import OpcuaServer
 
 
 async def main(server: OpcuaServer):
     async with server:
         # Create objects under node "0:/Root/0:Objects"
         # Create an object of type Printer named Printer1
-        obj: OpcuaObject[Printer] = await server.create(
-            Printer(), "Printer1"
-        )
+        proxy: Printer = await server.create(Printer(), "Printer1")
         await server.create(Printer(), "Printer2")
         await server.create(Robot(), "Robot")
 
         await server.loop()
 ```
-
-`create` function returns an `OpcuaObject` instance which acts
-as a proxy to read/update OPC UA nodes.
 
 Now you can verify objects creation by connecting the endpoint in your OPC UA client,
 or try [opcua-client-gui](https://github.com/FreeOpcUa/opcua-client-gui) if you don't have one.
@@ -131,44 +134,76 @@ Also check 2 created object types under `0:Root/0:Types/0:ObjectTypes/0:BaseObje
 
 ![object-types-example.png](examples/tutorial_example_object_types.png)
 
-#### Important
-
-You must call `create_objects` inside an `async with` block, which is required by the
+**Important**: You must call `create_objects` inside an `async with` block, which is required by the
 server to prepare itself (init variables, setup endpoint, register namespace, listen to target port...).
 
 ### Read All Fields of an Object
 
+We can use the `fetch` function to get a proxy of existing object.
+
 ```python
-async def read_object(obj: OpcuaObject[Printer]):
-    printer1 = await obj.get()
-    print(printer1.model_dump_json())
+from examples.tutorial import Printer
+from opcuax import OpcuaServer, fetch
+
+
+async def read_object(server: OpcuaServer):
+    proxy: Printer = fetch(Printer, "Printer1")
+    printer: Printer = await server.read(proxy)
+
+    print(printer.model_dump_json())
 ```
 
 ### Read Single Field of an Object
 
-If we want to read a certain node, we can use a lambda expression to specify the target node.
-This also works for an object node, which is not allowed in `asyncua`.
+The proxy remembers our traverse path and performs the same operation
+on the object node. `printer1_proxy.latest_job.filename` is equals to
+getting the node by path `0:Root/0:Objects/2:Printer1/2:latest_job/2:filename` on the server.
 
 ```python
-async def read_field(obj: OpcuaObject[Printer]):
-    filename = await obj.get(lambda printer: printer.latest_job.filename)
-    job = await obj.get(lambda printer: printer.latest_job)
+from opcuax import OpcuaServer
+from examples.tutorial import Printer, Job
+
+
+async def read_field(proxy: Printer, server: OpcuaServer):
+    job: Job = await server.read(proxy.latest_job)
+    filename: str = await server.read(proxy.latest_job.filename)
     assert filename == job.filename
 ```
 
 ### Update All Fields of an Object
 
 ```python
-async def update_object(obj: OpcuaObject[Printer]):
-    await obj.set(printer1)
-    await obj.set("Ready", lambda printer: printer.state)
+from opcuax import OpcuaServer
+from examples.tutorial import Printer
+
+
+async def update_all_nodes(server: OpcuaServer, model: Printer):
+    await server.update("Printer1", model)
 ```
+
+**WARNING**: `proxy = model` is not a valid operation, it makes the variable
+"proxy" points to the model.
 
 ### Update Single Field of an Object
 
+The proxy remembers all changes and synchronizes all of them after
+calling `server.commit`.
+
+Again: `proxy = model` is invalid!
+
 ```python
-async def update_field(obj: OpcuaObject[Printer]):
-    await obj.set("Ready", lambda printer: printer.state)
+from datetime import datetime
+
+from examples.tutorial import Printer, Job
+from opcuax import OpcuaServer
+
+
+async def update_field(server: OpcuaServer, proxy: Printer):
+    proxy.latest_job = Job(filename="A.gcode", time_used=100)
+    proxy.last_update = datetime.now()
+    proxy.state = "Printing"
+
+    await server.commit(proxy)
 ```
 
 ### Setup Client
@@ -200,10 +235,14 @@ client = OpcuaClient.from_env(env_file=".env")
 
 ### Read and Update Object Values
 
-This part is same as working with a server, except you use `OpcuaClient.get` and `OpcuaClient.set` functions.
+This part is same as working with a server, except you **cannot** create new object types,
+or objects whose types is not included on the server.
 
 ```python
-from opcuax import OpcuaClient, OpcuaObject
+import asyncio
+
+from examples.tutorial import Printer, Job
+from opcuax import OpcuaClient, fetch
 
 
 async def main(client: OpcuaClient):
@@ -211,24 +250,24 @@ async def main(client: OpcuaClient):
     await asyncio.sleep(2)
 
     async with client:
-      # read object values
-      obj: OpcuaObject[Printer] = client.get_object(Printer, "Printer1")
+        proxy = fetch(Printer, "Printer1")
 
-      printer1 = await obj.get()
-      print(printer1.model_dump_json())
+        printer: Printer = await client.read(proxy)
+        print(printer.model_dump_json())
 
-      # update a field
-      await obj.set(PrinterHead(x=5, y=10, z=15), lambda printer: printer.head)
-
-      # update all fields
-      await obj.set(printer1)
+        proxy.latest_job = Job(filename="A.gcode", time_used=1)
+        await client.commit(proxy)
 ```
 
-## Editor Support
+[//]: # (## Editor Support)
 
-Returned type of `get` function can be inferred with a [pyright](https://github.com/microsoft/pyright) server.
+[//]: # ()
 
-![editor-support.png](examples/editor-support.png)
+[//]: # (Returned type of `get` function can be inferred with a [pyright]&#40;https://github.com/microsoft/pyright&#41; server.)
+
+[//]: # ()
+
+[//]: # (![editor-support.png]&#40;examples/editor-support.png&#41;)
 
 ## Contribute
 
