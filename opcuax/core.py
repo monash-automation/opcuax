@@ -9,7 +9,7 @@ from typing import Any, ClassVar, Generic, TypeVar
 from asyncua import Node, ua
 from pydantic import BaseModel
 
-from .values import python_value
+from .values import opcua_value, python_value
 
 _UndefinedNode: tuple = ()
 T = TypeVar("T")
@@ -76,15 +76,12 @@ class OpcuaxNode(Generic[T]):
         return self.cls(**data)
 
     def _write_variable(self, value: Any) -> Callable[[Node, int], Awaitable[None]]:
-        # TODO extract to values
-        opcua_value = value
-        if not issubclass(self.cls, (str, int, float, bool)):
-            opcua_value = str(value)
+        value = opcua_value(value)
 
         async def _write(root: Node, ns: int) -> None:
             node = await self._get_ua_node(root, ns)
             var_type = await node.read_data_type_as_variant_type()
-            ua_value = ua.DataValue(ua.Variant(opcua_value, var_type))
+            ua_value = ua.DataValue(ua.Variant(value, var_type))
             await node.write_value(ua_value)
 
         self.updates.append(_write)
@@ -190,7 +187,8 @@ class OpcuaObject(Generic[_OpcuaModel]):
 
 
 def fetch(cls: type[_OpcuaModel], name: str) -> _OpcuaModel:
-    return OpcuaModel.__node_classes__[cls](browse_path=[name], updates=[], cls=cls)
+    node = OpcuaModel.__node_classes__[cls](browse_path=[name], updates=[], cls=cls)
+    return node
 
 
 class Opcuax(ABC):
@@ -212,7 +210,7 @@ class Opcuax(ABC):
     async def read(self, node: T) -> T:
         return await node.read(self.ua_objects_node, self.namespace)
 
-    async def update(self, name: str, model: OpcuaModel) -> _OpcuaModel:
+    async def update(self, name: str, model: _OpcuaModel) -> _OpcuaModel:
         node = fetch(type(model), name)
         node._write_object(model)
         await self.commit(node)
