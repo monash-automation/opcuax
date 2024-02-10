@@ -118,9 +118,9 @@ async def main(server: OpcuaServer):
     async with server:
         # Create objects under node "0:/Root/0:Objects"
         # Create an object of type Printer named Printer1
-        proxy: Printer = await server.create(Printer(), "Printer1")
-        await server.create(Printer(), "Printer2")
-        await server.create(Robot(), "Robot")
+        proxy: Printer = await server.create("Printer1", Printer())
+        await server.create("Printer2", Printer())
+        await server.create("Robot", Robot())
 
         await server.loop()
 ```

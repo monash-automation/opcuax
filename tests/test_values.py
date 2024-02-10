@@ -20,7 +20,7 @@ T = TypeVar("T", bound=OpcuaModel)
 
 
 async def create_and_read(server: OpcuaServer, model: T) -> T:
-    proxy = await server.create(model, "model")
+    proxy = await server.create("model", model)
     return await server.read(proxy)
 
 

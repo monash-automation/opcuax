@@ -36,7 +36,7 @@ def snoopy() -> Dog:
 async def pet_server(
     server: OpcuaServer, snoopy: Dog
 ) -> AsyncGenerator[OpcuaServer, None]:
-    await server.create(snoopy, name="Snoopy")
+    await server.create("Snoopy", snoopy)
     yield server
 
 

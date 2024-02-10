@@ -24,7 +24,7 @@ async def test_datetime(server: OpcuaServer, client: OpcuaClient) -> None:
     class Model(OpcuaModel):
         val: Annotated[datetime, PastDatetime(), Field(default_factory=datetime.now)]
 
-    proxy = await server.create(Model(), "model")
+    proxy = await server.create("model", Model())
 
     model = await client.read(proxy)
     assert model.val < datetime.now()

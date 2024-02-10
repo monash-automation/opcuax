@@ -60,9 +60,9 @@ def build_client() -> OpcuaClient:
 
 async def run_server(server: OpcuaServer) -> None:
     async with server:
-        proxy: Printer = await server.create(Printer(), "Printer1")
-        await server.create(Printer(), "Printer2")
-        await server.create(Robot(), "Robot")
+        proxy: Printer = await server.create("Printer1", Printer())
+        await server.create("Printer2", Printer())
+        await server.create("Robot", Robot())
 
         # Read all nodes
         printer1: Printer = await server.read(proxy)

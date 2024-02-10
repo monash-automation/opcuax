@@ -97,7 +97,7 @@ class OpcuaServer(Opcuax):
             self.namespace, name, objecttype=self.object_type_nodes[cls].nodeid
         )
 
-    async def create(self, model: _OpcuaModel, name: str) -> _OpcuaModel:
+    async def create(self, name: str, model: _OpcuaModel) -> _OpcuaModel:
         await self.create_ua_object(type(model), name=name)
         return await self.update(name, model)
 

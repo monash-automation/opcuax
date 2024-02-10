@@ -17,7 +17,7 @@ def home(snoopy: Dog) -> Home:
 async def server(
     pet_server: OpcuaServer, home: Home
 ) -> AsyncGenerator[OpcuaServer, None]:
-    await pet_server.create(home, name="SnoopyHome")
+    await pet_server.create("SnoopyHome", home)
     yield pet_server
 
 
@@ -71,7 +71,7 @@ async def test_fields_of_same_model_type(server: OpcuaServer) -> None:
         bob: Person = Person(name="Bob")
         carl: Person = Person(name="Carl")
 
-    model_object = await server.create(Model(), "model")
+    model_object = await server.create("model", Model())
     model: Model = await server.read(model_object)
 
     assert model.mike.name == "Mike"
