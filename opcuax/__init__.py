@@ -3,12 +3,11 @@ __all__ = [
     "OpcuaModel",
     "OpcuaServer",
     "OpcuaClient",
-    "OpcuaObject",
     "OpcuaServerSettings",
     "OpcuaClientSettings",
 ]
 
 from .client import OpcuaClient
-from .core import OpcuaModel, OpcuaObject, fetch
+from .core import OpcuaModel, fetch
 from .server import OpcuaServer
 from .settings import OpcuaClientSettings, OpcuaServerSettings
