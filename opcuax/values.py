@@ -5,12 +5,19 @@ from typing import Any, NamedTuple
 from uuid import UUID
 
 from asyncua.ua import VariantType
-from pydantic import AnyUrl, IPvAnyAddress, Json
+from pydantic import (
+    AnyUrl,
+    FutureDate,
+    FutureDatetime,
+    IPvAnyAddress,
+    Json,
+    PastDate,
+    PastDatetime,
+    UrlConstraints,
+)
 from pydantic.fields import FieldInfo
+from pydantic.types import PathType
 from pydantic_core import PydanticUndefined
-
-__date_format = "%Y-%m-%d"
-__datetime_format = "%Y-%m-%d %H:%M:%S.%f"
 
 
 class _UaVariant(NamedTuple):
@@ -24,10 +31,12 @@ __mapping = {
     float: _UaVariant(VariantType.Float, 0),
     bool: _UaVariant(VariantType.Boolean, False),
     # ISO 8601:2004 is required https://reference.opcfoundation.org/Core/Part6/v104/docs/5.4.2.6
-    # Currently not working in clients
-    # because client returns a string in format "%Y-%m-%dT%H:%M:%SZ"
-    date: _UaVariant(VariantType.String, date.min.strftime(__date_format)),
-    datetime: _UaVariant(VariantType.String, datetime.min.strftime(__datetime_format)),
+    date: _UaVariant(VariantType.DateTime, date.min),
+    FutureDate: _UaVariant(VariantType.DateTime, date.max),
+    PastDate: _UaVariant(VariantType.DateTime, date.min),
+    datetime: _UaVariant(VariantType.DateTime, datetime.min),
+    FutureDatetime: _UaVariant(VariantType.DateTime, datetime.max),
+    PastDatetime: _UaVariant(VariantType.DateTime, datetime.max),
     AnyUrl: _UaVariant(VariantType.String, "http://127.0.0.1/"),
     IPv4Address: _UaVariant(VariantType.String, "127.0.0.1"),
     IPv6Address: _UaVariant(VariantType.String, "::1"),
@@ -38,12 +47,43 @@ __mapping = {
 }
 
 
+def default_url(constraint: UrlConstraints) -> str:
+    url = ""
+
+    if len(constraint.allowed_schemes) > 0:
+        url += constraint.allowed_schemes[0] + "://"
+
+    if constraint.default_host is not None:
+        url += constraint.default_host
+
+    if constraint.default_port is not None:
+        url += f":{constraint.default_port}"
+
+    if constraint.default_path is not None:
+        url += constraint.default_path
+
+    return url
+
+
 def ua_variant(field: FieldInfo) -> _UaVariant:
     cls = field.annotation
     if cls is None or cls not in __mapping:
         raise ValueError(f"cannot map {cls} to ua.VariantType")
 
     variant_type, default = __mapping[cls]
+
+    if len(field.metadata) > 0:
+        metadata = field.metadata[0]
+
+        # if cls is float or cls is int:
+        #     pass
+        if isinstance(metadata, UrlConstraints):
+            default = default_url(metadata)
+        elif isinstance(metadata, (FutureDate, PastDate, FutureDatetime, PastDatetime)):
+            variant_type, default = __mapping[type(metadata)]
+        elif isinstance(metadata, PathType):
+            if metadata.path_type == "dir":
+                default = "./"
 
     if field.default != PydanticUndefined:
         default = field.default
@@ -54,15 +94,13 @@ def ua_variant(field: FieldInfo) -> _UaVariant:
 
 
 def opcua_value(value: Any) -> Any:
-    if isinstance(value, (str, int, float, bool)):
+    if isinstance(value, (str, int, float, bool, date, datetime)):
         return value
     return str(value)
 
 
 def python_value(cls: type[Any], ua_value: Any) -> Any:
-    if cls is date:
-        return datetime.strptime(ua_value, __date_format)
-    elif cls is datetime:
-        return datetime.strptime(ua_value, __datetime_format)
+    if cls is date or cls is datetime:
+        return ua_value
     else:
         return cls(ua_value)
