@@ -116,7 +116,9 @@ def enhanced_model_class(cls: type[TBaseModel]) -> type[TEnhancedModel]:
         return cls
 
     new_cls = type[TEnhancedModel](
-        EnhancedModel.classname_for(cls), (cls, EnhancedModel), {}
+        EnhancedModel.classname_for(cls),
+        (cls, EnhancedModel),
+        {"__module__": EnhancedModel.__module__},
     )
     new_cls.origin = cls
     EnhancedModel.classes[cls] = new_cls
