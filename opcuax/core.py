@@ -72,9 +72,6 @@ class Opcuax(ABC):
         assert isinstance(enhanced, model_class)
         return enhanced
 
-    async def read(self, node: T) -> T:
-        return await node.read(self.ua_objects_node, self.namespace)
-
     async def refresh(self, model: TBaseModel) -> None:
         if not isinstance(model, EnhancedModel):
             raise ValueError("model must be an object returned from get_object()")
