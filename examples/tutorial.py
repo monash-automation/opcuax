@@ -8,7 +8,6 @@ from opcuax import (
     OpcuaModel,
     OpcuaServer,
     OpcuaServerSettings,
-    fetch,
 )
 from pydantic import BaseModel, Field, IPvAnyAddress, NonNegativeInt, PastDatetime
 
@@ -60,42 +59,44 @@ def build_client() -> OpcuaClient:
 
 async def run_server(server: OpcuaServer) -> None:
     async with server:
-        proxy: Printer = await server.create("Printer1", Printer())
-        await server.create("Printer2", Printer())
+        # create() returns enhanced models that maintains corresponding node info
+        printer1: Printer = await server.create("Printer1", Printer())
+        printer2: Printer = await server.create("Printer2", Printer())
         await server.create("Robot", Robot())
 
-        # Read all nodes
-        printer1: Printer = await server.read(proxy)
+        # Refresh object values
+        await server.refresh(printer1)
         print(printer1.model_dump_json())
 
-        # Read a subset of nodes
-        job = await server.read(proxy.latest_job)
-        assert printer1.latest_job == job
+        # Refresh an inner object
+        await server.refresh(printer2.latest_job)
 
-        # The proxy object records all changes
-        proxy.latest_job.filename = "A.gcode"
-        # sync changes to server
-        await server.commit(proxy)
+        printer1.state = "Printing"
+        printer1.latest_job.filename = "A.gcode"
+        # submit changes to the server
+        await server.commit()
 
-        # WARNING: proxy = printer1 won't update all nodes to printer1
-        # instead the variable "proxy" is reference to printer1
-        # Please use the update function to update all nodes from a model
-        await server.update("Printer2", printer1)
+        # WARNING: printer1 = Printer() won't update all nodes in printer1
+        # instead the variable "printer1" is points to the new Printer instance
+        await server.update("Printer1", Printer())
 
         await server.loop()
 
 
 async def run_client(client: OpcuaClient) -> None:
-    await asyncio.sleep(3)  # wait until server is ready
+    # wait until server is ready if you run server and client in one program
+    await asyncio.sleep(3)
 
     async with client:
-        proxy = fetch(Printer, "Printer1")
-
-        printer: Printer = await client.read(proxy)
+        # Get an object from the server
+        printer = await client.get_object(Printer, "Printer1")
         print(printer.model_dump_json())
 
-        proxy.latest_job = Job(filename="A.gcode", time_used=1)
-        await client.commit(proxy)
+        printer.latest_job.time_used += 10
+        printer.state = "Finished"
+        await client.commit()
+
+        await client.refresh(printer)
 
 
 async def main() -> None:
