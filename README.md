@@ -101,12 +101,8 @@ server = OpcuaServer.from_env(env_file=".env")
 ```
 
 With a server we can create a printer object by calling `server.create`.
-The server will return a **proxy** of the object node which can be used for
-reading and writing values.
-
-**WARNING**: although the proxy seems to have the same type of the model,
-but it is actually an instance of `_OpcuaxPrinter`, which is created
-dynamically at runtime.
+The server will return an **enhanced** model of the printer which maintains
+OPC UA node information.
 
 ```python
 
@@ -118,12 +114,30 @@ async def main(server: OpcuaServer):
     async with server:
         # Create objects under node "0:/Root/0:Objects"
         # Create an object of type Printer named Printer1
-        proxy: Printer = await server.create("Printer1", Printer())
+        printer1: Printer = await server.create("Printer1", Printer())
+        print(type(printer1))  # <class 'opcuax.model._OpcuaxPrinter'>
+        print(type(printer1).__bases__)  # (<class '__main__.Printer'>, <class 'opcuax.model.EnhancedModel'>)
+        assert isinstance(printer1, Printer)
+
         await server.create("Printer2", Printer())
         await server.create("Robot", Robot())
 
         await server.loop()
 ```
+
+`opcuax` creates an enhanced class for each `OpcuaModel` at runtime to integrate OPC UA node operations.
+This is same as:
+
+```python
+from examples.tutorial import Printer
+from opcuax.model import EnhancedModel
+
+
+class _OpcuaxPrinter(Printer, EnhancedModel):
+    pass
+```
+
+You must use the enhanced model to call server/client APIs.
 
 Now you can verify objects creation by connecting the endpoint in your OPC UA client,
 or try [opcua-client-gui](https://github.com/FreeOpcUa/opcua-client-gui) if you don't have one.
@@ -139,57 +153,29 @@ server to prepare itself (init variables, setup endpoint, register namespace, li
 
 ### Read All Fields of an Object
 
-We can use the `fetch` function to get a proxy of existing object.
+The returned enhanced model contains a snapshot of all node values in the server.
+If you want to get the latest value, call `refresh` with the enhanced model.
+
+Note: the argument must be a model which has a corresponding object node in the server.
+Trying to refresh a variable (for example `printer1.state`) is invalid.
 
 ```python
 from examples.tutorial import Printer
-from opcuax import OpcuaServer, fetch
+from opcuax import OpcuaServer
 
 
 async def read_object(server: OpcuaServer):
-    proxy: Printer = fetch(Printer, "Printer1")
-    printer: Printer = await server.read(proxy)
-
-    print(printer.model_dump_json())
+    printer1: Printer = await server.create("Printer1", Printer())
+    # refresh all values
+    await server.refresh(printer1)
+    # refresh a subset of nodes
+    await server.refresh(printer1.latest_job)
 ```
-
-### Read Single Field of an Object
-
-The proxy remembers our traverse path and performs the same operation
-on the object node. `printer1_proxy.latest_job.filename` is equals to
-getting the node by path `0:Root/0:Objects/2:Printer1/2:latest_job/2:filename` on the server.
-
-```python
-from opcuax import OpcuaServer
-from examples.tutorial import Printer, Job
-
-
-async def read_field(proxy: Printer, server: OpcuaServer):
-    job: Job = await server.read(proxy.latest_job)
-    filename: str = await server.read(proxy.latest_job.filename)
-    assert filename == job.filename
-```
-
-### Update All Fields of an Object
-
-```python
-from opcuax import OpcuaServer
-from examples.tutorial import Printer
-
-
-async def update_all_nodes(server: OpcuaServer, model: Printer):
-    await server.update("Printer1", model)
-```
-
-**WARNING**: `proxy = model` is not a valid operation, it makes the variable
-"proxy" points to the model.
 
 ### Update Single Field of an Object
 
-The proxy remembers all changes and synchronizes all of them after
+The enhanced model remembers all value changes and will synchronize all changes to the server after
 calling `server.commit`.
-
-Again: `proxy = model` is invalid!
 
 ```python
 from datetime import datetime
@@ -198,12 +184,29 @@ from examples.tutorial import Printer, Job
 from opcuax import OpcuaServer
 
 
-async def update_field(server: OpcuaServer, proxy: Printer):
-    proxy.latest_job = Job(filename="A.gcode", time_used=100)
-    proxy.last_update = datetime.now()
-    proxy.state = "Printing"
+async def update_field(server: OpcuaServer):
+    printer1: Printer = await server.create("Printer1", Printer())
 
-    await server.commit(proxy)
+    printer1.latest_job = Job(filename="A.gcode", time_used=100)
+    printer1.last_update = datetime.now()
+    printer1.state = "Printing"
+
+    await server.commit()
+```
+
+### Update All Fields of an Object
+
+If you want to update all fields of an `OpcuaModel`, use `server.update` instead of `printer1 = Printer()`.
+The latter one makes variable `printer1` points to a new printer model and the enhanced model is not
+accessible anymore.
+
+```python
+from opcuax import OpcuaServer
+from examples.tutorial import Printer
+
+
+async def update_all_nodes(server: OpcuaServer, model: Printer):
+    await server.update("Printer1", model)
 ```
 
 ### Setup Client
@@ -241,33 +244,25 @@ or objects whose types is not included on the server.
 ```python
 import asyncio
 
-from examples.tutorial import Printer, Job
-from opcuax import OpcuaClient, fetch
+from examples.tutorial import Printer
+from opcuax import OpcuaClient
 
 
 async def main(client: OpcuaClient):
     # wait until server is ready if you run server and client in one program
-    await asyncio.sleep(2)
+    await asyncio.sleep(3)
 
     async with client:
-        proxy = fetch(Printer, "Printer1")
-
-        printer: Printer = await client.read(proxy)
+        # Get an object from the server
+        printer = await client.get_object(Printer, "Printer1")
         print(printer.model_dump_json())
 
-        proxy.latest_job = Job(filename="A.gcode", time_used=1)
-        await client.commit(proxy)
+        printer.latest_job.time_used += 10
+        printer.state = "Finished"
+        await client.commit()
+
+        await client.refresh(printer)
 ```
-
-[//]: # (## Editor Support)
-
-[//]: # ()
-
-[//]: # (Returned type of `get` function can be inferred with a [pyright]&#40;https://github.com/microsoft/pyright&#41; server.)
-
-[//]: # ()
-
-[//]: # (![editor-support.png]&#40;examples/editor-support.png&#41;)
 
 ## Contribute
 

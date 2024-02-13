@@ -2,7 +2,7 @@ from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-from opcuax import OpcuaModel, OpcuaServer, fetch
+from opcuax import OpcuaModel, OpcuaServer
 from pydantic import BaseModel
 
 from tests.models import Dog, Home
@@ -21,48 +21,73 @@ async def server(
     yield pet_server
 
 
-@pytest.fixture
-def home_proxy(server: OpcuaServer) -> Home:
-    return fetch(Home, "SnoopyHome")
+async def test_get_object(server: OpcuaServer, home: Home) -> None:
+    _home = await server.get_object(Home, "SnoopyHome")
+    assert isinstance(_home, Home)
+    assert home.model_dump() == _home.model_dump()
 
 
-@pytest.fixture
-def dog_proxy(server: OpcuaServer) -> Dog:
-    return fetch(Dog, "Snoopy")
+async def test_refresh_root(server: OpcuaServer, home: Home) -> None:
+    _home = await server.get_object(Home, "SnoopyHome")
+    _dog = _home.dog
+    _home.__dict__["name"] = "wrong"
+    _home.__dict__["address"] = "wrong"
+    _dog.__dict__["name"] = "wrong"
+    _dog.__dict__["age"] = 999
+    _dog.__dict__["weight"] = 999
+    await server.refresh(_home)
+    assert _home.model_dump() == home.model_dump()
 
 
-async def test_get(server: OpcuaServer, home_proxy: Home, home: Home) -> None:
-    value = await server.read(home_proxy)
-    assert value == home
+async def test_refresh_part(server: OpcuaServer, home: Home) -> None:
+    _home = await server.get_object(Home, "SnoopyHome")
+    _dog = _home.dog
+    _dog.__dict__["name"] = "wrong"
+    _dog.__dict__["age"] = 999
+    _dog.__dict__["weight"] = 999
+
+    await server.refresh(_home.dog)
+    assert _dog.model_dump() == home.dog.model_dump()
 
 
-async def test_get_variable(server: OpcuaServer, dog_proxy: Dog, snoopy: Dog) -> None:
-    value = await server.read(dog_proxy.name)
-    assert value == snoopy.name
+async def test_update_variable(server: OpcuaServer, home: Home) -> None:
+    _home = await server.get_object(Home, "SnoopyHome")
+    _home.name = "foo"
+    _home.address = "addr"
+
+    await server.commit()
+    await server.refresh(_home)
+    assert _home.name == "foo"
+    assert _home.address == "addr"
 
 
-async def test_get_nested_variable(
-    server: OpcuaServer, home_proxy: Home, snoopy: Dog
-) -> None:
-    value = await server.read(home_proxy.dog.name)
-    assert value == snoopy.name
+async def test_update_object(server: OpcuaServer) -> None:
+    _home = await server.get_object(Home, "SnoopyHome")
+    dog = Dog(name="new", age=1, weight=999)
+    _home.dog = dog
+
+    await server.commit()
+    await server.refresh(_home)
+    assert _home.dog.model_dump() == dog.model_dump()
 
 
-async def test_set_variable(server: OpcuaServer, dog_proxy: Dog) -> None:
-    dog_proxy.name = "foo"
-    await server.commit(dog_proxy)
-    value = await server.read(dog_proxy.name)
-    assert value == "foo"
+async def test_update_nested_variable(server: OpcuaServer) -> None:
+    _home = await server.get_object(Home, "SnoopyHome")
+    _home.dog.name = "foo"
 
-
-async def test_set_nested_variable(server: OpcuaServer, home_proxy: Home) -> None:
-    home_proxy.dog.name = "foo"
-    await server.commit(home_proxy)
-    _home = await server.read(home_proxy)
+    await server.commit()
+    await server.refresh(_home)
     assert _home.dog.name == "foo"
 
 
-async def test_fields_of_same_model_type(server: OpcuaServer) -> None:
+async def test_update(server: OpcuaServer) -> None:
+    home = Home(name="new", address="addr", dog=Dog(name="foo", age=33, weight=999))
+
+    _home = await server.update("SnoopyHome", home)
+    assert _home.model_dump() == home.model_dump()
+
+
+async def test_update_fields_of_same_model_type(server: OpcuaServer) -> None:
     class Person(BaseModel):
         name: str
 
@@ -71,9 +96,14 @@ async def test_fields_of_same_model_type(server: OpcuaServer) -> None:
         bob: Person = Person(name="Bob")
         carl: Person = Person(name="Carl")
 
-    model_object = await server.create("model", Model())
-    model: Model = await server.read(model_object)
+    model = await server.create("model", Model())
 
-    assert model.mike.name == "Mike"
-    assert model.bob.name == "Bob"
-    assert model.carl.name == "Carl"
+    model.mike.name = "mike"
+    model.bob.name = "bob"
+    model.carl.name = "carl"
+    await server.commit()
+    await server.refresh(model)
+
+    assert model.mike.name == "mike"
+    assert model.bob.name == "bob"
+    assert model.carl.name == "carl"
