@@ -78,7 +78,7 @@ class EnhancedModel(BaseModel):
 
             if isinstance(value, BaseModel):
                 child = self.__dict__[name]
-                await child.update_self(name, value)
+                await child.update_self(value)
             else:
                 await self.__update_variable(name, value)
 

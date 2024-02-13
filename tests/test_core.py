@@ -80,6 +80,13 @@ async def test_update_nested_variable(server: OpcuaServer) -> None:
     assert _home.dog.name == "foo"
 
 
+async def test_update(server: OpcuaServer) -> None:
+    home = Home(name="new", address="addr", dog=Dog(name="foo", age=33, weight=999))
+
+    _home = await server.update("SnoopyHome", home)
+    assert _home.model_dump() == home.model_dump()
+
+
 async def test_update_fields_of_same_model_type(server: OpcuaServer) -> None:
     class Person(BaseModel):
         name: str

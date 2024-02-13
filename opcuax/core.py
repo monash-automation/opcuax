@@ -8,7 +8,7 @@ from asyncua import Node
 from pydantic import BaseModel
 
 from .model import EnhancedModel, TBaseModel, TOpcuaModel, UpdateTask
-from .node import read_ua_variable, write_ua_variable
+from .node import read_ua_variable
 
 T = TypeVar("T")
 
@@ -81,21 +81,10 @@ class Opcuax(ABC):
         await model.refresh()
 
     async def update(self, name: str, model: TOpcuaModel) -> TOpcuaModel:
-        async def dfs(raw: TBaseModel, enhanced: EnhancedModel) -> None:
-            for field_name, field_info in raw.model_fields.items():
-                cls = field_info.annotation
-                value = getattr(raw, field_name)
-                node = await enhanced._node.get_child(f"{self.namespace}:{field_name}")
-
-                if issubclass(cls, BaseModel):
-                    await dfs(value, getattr(enhanced, field_name))
-                else:
-                    enhanced.__dict__[field_name] = value
-                    await write_ua_variable(node, value)
-
-        _enhanced = await self.get_object(type(model), name)
-        await dfs(model, _enhanced)
-        return _enhanced
+        enhanced = await self.get_object(type(model), name)
+        assert isinstance(enhanced, (EnhancedModel, type(model)))
+        await enhanced.update_self(model)
+        return enhanced
 
     async def commit(self) -> None:
         async with asyncio.TaskGroup() as tg:
