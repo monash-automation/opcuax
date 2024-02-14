@@ -3,7 +3,7 @@ from inspect import isawaitable
 
 import flatdict
 import redis.asyncio as redis
-from benchmark.models import Printer
+from benchmark._models import Printer
 from opcuax import OpcuaClient
 
 

@@ -3,12 +3,17 @@
 A simple OPC UA library based on [opcua-asyncio](https://opcua-asyncio.readthedocs.io/en/latest/)
 and [Pydantic](https://docs.pydantic.dev/latest/).
 
+## Benchmark
+
+[Benchmark](./benchmark/main.py) is performed by simulating a printer server which
+reads/writes 10 [printers](./benchmark/_models.py) concurrently in 10 async tasks.
+
+![benchmark.png](benchmark.png)
+
 ## Code Examples
 
-* [Server](./examples/server.py)
-* [Client](./examples/client.py)
-* [Cache](./examples/redis_cache.py)
 * [Full code](./examples/tutorial.py) of [Getting Started](#getting-started) section
+* [Caching by Redis](./examples/redis_cache.py)
 
 ## Getting Started
 
@@ -43,6 +48,7 @@ from pydantic import BaseModel, NonNegativeInt, Field, IPvAnyAddress, PastDateti
 from opcuax import OpcuaModel
 
 UpdateTime = Annotated[datetime, PastDatetime()]
+LabPos = Annotated[float, Field(ge=-200, le=200, default=0)]
 
 
 class Trackable(OpcuaModel):
