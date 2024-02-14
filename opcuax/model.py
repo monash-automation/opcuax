@@ -1,16 +1,18 @@
 import asyncio
-from collections.abc import Awaitable
-from typing import Any, ClassVar, TypeVar
+from collections.abc import Generator
+from typing import Any, ClassVar, Never, TypeVar
 
 from asyncua import Node
 from pydantic import BaseModel, PrivateAttr
 from pydantic.fields import FieldInfo
 
+from opcuax.helper import field_class
 from opcuax.node import read_ua_variable, write_ua_variable
 
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 TEnhancedModel = TypeVar("TEnhancedModel", bound="EnhancedModel")
-UpdateTask = Awaitable[None]
+# UpdateTask = Awaitable[None]
+UpdateTask = Generator[Any, None, Never]
 
 
 def parse_field_class(name: str, info: FieldInfo) -> type[Any]:
@@ -41,14 +43,15 @@ class EnhancedModel(BaseModel):
     origin: ClassVar[type[BaseModel]]
     _node: Node | None = PrivateAttr(default=None)
     _ns: int = PrivateAttr(default=0)
-    _tasks: asyncio.Queue = PrivateAttr(default=None)
+    _tasks: asyncio.Queue[UpdateTask] = PrivateAttr(default=None)
 
     async def __get_node(self, name: str) -> Node:
+        assert self._node is not None
         return await self._node.get_child(f"{self._ns}:{name}")
 
     async def refresh(self) -> None:
         for name, info in type(self).model_fields.items():
-            cls = info.annotation
+            cls = field_class(info)
             node = await self.__get_node(name)
 
             if issubclass(cls, BaseModel):
@@ -60,7 +63,7 @@ class EnhancedModel(BaseModel):
                 self.__dict__[name] = value
 
     @staticmethod
-    def classname_for(cls: BaseModel) -> str:
+    def classname_for(cls: type[BaseModel]) -> str:
         return "_Opcuax" + cls.__name__
 
     async def __update_variable(self, name: str, value: Any) -> None:
@@ -95,27 +98,24 @@ class EnhancedModel(BaseModel):
 
         self._tasks.put_nowait(task)
 
-    def __eq__(self, other: Any):
+    # TODO: how about model == enhanced?
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, self.origin):
             return False
         return self.__dict__ == other.__dict__
 
 
-def is_field(model: EnhancedModel, name: str):
+def is_field(model: EnhancedModel, name: str) -> bool:
     return name in type(model).model_fields
 
 
-def field_class(model: EnhancedModel, name: str):
-    return type(model).__annotations__[name]
-
-
-def enhanced_model_class(cls: type[TBaseModel]) -> type[TEnhancedModel]:
+def enhanced_model_class(cls: type[TBaseModel]) -> type[EnhancedModel]:
     if cls in EnhancedModel.classes:
         return EnhancedModel.classes[cls]
     elif issubclass(cls, EnhancedModel):
         return cls
 
-    new_cls = type[TEnhancedModel](
+    new_cls: type[EnhancedModel] = type(
         EnhancedModel.classname_for(cls),
         (cls, EnhancedModel),
         {"__module__": EnhancedModel.__module__},
@@ -129,9 +129,3 @@ def enhanced_model_class(cls: type[TBaseModel]) -> type[TEnhancedModel]:
         if issubclass(field_cls, BaseModel):
             enhanced_model_class(field_cls)
     return new_cls
-
-
-def model_eq(self: TBaseModel, other: Any) -> bool:
-    if isinstance(other, EnhancedModel) and other.origin is type(self):
-        return other == self
-    return super().__eq__(other)

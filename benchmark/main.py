@@ -1,8 +1,7 @@
 import asyncio
 import logging
 
-import _asyncua
-import _opcuax
+from benchmark import _asyncua, _opcuax
 
 server_read_cases = [(10, 10), (10, 100), (10, 1000), (10, 5000)]
 client_read_cases = [(10, 10), (10, 100), (10, 500), (10, 1000)]

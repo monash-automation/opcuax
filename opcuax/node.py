@@ -8,8 +8,9 @@ T = TypeVar("T")
 
 
 async def read_ua_variable(node: Node, cls: type[T]) -> T:
-    value = await node.read_value()
-    return python_value(cls, value)
+    ua_value = await node.read_value()
+    value = python_value(cls, ua_value)
+    return value  # type: ignore
 
 
 async def write_ua_variable(node: Node, value: Any) -> None:

@@ -50,7 +50,7 @@ __mapping = {
 def default_url(constraint: UrlConstraints) -> str:
     url = ""
 
-    if len(constraint.allowed_schemes) > 0:
+    if constraint.allowed_schemes and len(constraint.allowed_schemes) > 0:
         url += constraint.allowed_schemes[0] + "://"
 
     if constraint.default_host is not None:

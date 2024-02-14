@@ -38,7 +38,7 @@ strict = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = "asyncua"
+module = "asyncua.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

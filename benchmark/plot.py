@@ -2,6 +2,7 @@ from typing import Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.axes import Axes
 from pydantic import BaseModel
 
 Library = Literal["asyncua", "opcuax"]
@@ -25,7 +26,7 @@ def parse_results(text: str) -> list[Result]:
     return [parse_result(line) for line in text.split("\n") if len(line) > 0]
 
 
-def sub_plot(ax, results: list[Result], api: str):
+def sub_plot(ax: Axes, results: list[Result], api: Api) -> None:
     results = [result for result in results if result.api == api]
     ua = [
         result
@@ -44,7 +45,7 @@ def sub_plot(ax, results: list[Result], api: str):
     assert len(ua) == len(uax)
     assert all(_ua.n == _uax.n for _ua, _uax in zip(ua, uax))
 
-    species = [result.n for result in ua]
+    species = [str(result.n) for result in ua]
     data = {
         "opcua-asyncio": [result.seconds for result in ua],
         "opcuax": [result.seconds for result in uax],
@@ -85,12 +86,12 @@ def plot(results: list[Result]) -> None:
 
 
 def plot_title(api: Api, n: int) -> str:
-    api = api.replace("-", " ")
-    api += f" {n} printers n times"
-    return api.title()
+    title = api.replace("-", " ")
+    title += f" {n} printers n times"
+    return title.title()
 
 
 if __name__ == "__main__":
     with open("./result.txt") as f:
-        results = [parse_result(line) for line in f.readlines()]
-        plot(results)
+        _results = [parse_result(line) for line in f.readlines()]
+        plot(_results)

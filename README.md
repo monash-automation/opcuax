@@ -42,8 +42,9 @@ Note we extend class `OpcuaModel` in `Printer` and `Robot`
 ```python
 from datetime import datetime
 from typing import Annotated
+from ipaddress import IPv4Address
 
-from pydantic import BaseModel, NonNegativeInt, Field, IPvAnyAddress, PastDatetime
+from pydantic import BaseModel, NonNegativeInt, Field, PastDatetime
 
 from opcuax import OpcuaModel
 
@@ -52,7 +53,7 @@ LabPos = Annotated[float, Field(ge=-200, le=200, default=0)]
 
 
 class Trackable(OpcuaModel):
-    ip: IPvAnyAddress = "127.0.0.1"
+    ip: IPv4Address = "127.0.0.1"
     last_update: UpdateTime = Field(default_factory=datetime.now)
 
 

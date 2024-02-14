@@ -1,9 +1,10 @@
 import asyncio
+from collections.abc import Callable
 from typing import Any
 
-from _config import client_settings, server_settings
 from asyncua import Client, Node, Server, ua
 
+from benchmark._config import client_settings, server_settings
 from benchmark._helper import Timer, random_printer
 from benchmark._models import Printer, PrinterHead, PrinterJob, Temperature
 
@@ -86,11 +87,11 @@ async def create_printers(
     return printers
 
 
-def get_browse_name(ns: int):
+def get_browse_name(ns: int) -> Callable[[str], str]:
     return lambda name: f"{ns}:{name}"
 
 
-async def read_temperature(ns: int, parent: Node):
+async def read_temperature(ns: int, parent: Node) -> Temperature:
     name = get_browse_name(ns)
     actual = await parent.get_child(name("actual"))
     target = await parent.get_child(name("target"))
@@ -153,7 +154,7 @@ async def read_printer(ns: int, printer: Node) -> Printer:
     )
 
 
-async def write(node: Node, value: Any):
+async def write(node: Node, value: Any) -> None:
     var_type = await node.read_data_type_as_variant_type()
     ua_value = ua.DataValue(ua.Variant(value, var_type))
     await node.write_value(ua_value)
@@ -194,7 +195,7 @@ async def write_job(ns: int, parent: Node, value: PrinterJob) -> None:
     await write(time_used, value.time_used)
 
 
-async def write_printer(ns: int, printer: Node, value: Printer):
+async def write_printer(ns: int, printer: Node, value: Printer) -> None:
     name = get_browse_name(ns)
     state: Node = await printer.get_child(name("state"))
     bed: Node = await printer.get_child(name("bed"))
@@ -209,7 +210,7 @@ async def write_printer(ns: int, printer: Node, value: Printer):
     await write_job(ns, job, value.job)
 
 
-async def server_read_benchmark(printers: int, n: int):
+async def server_read_benchmark(printers: int, n: int) -> None:
     server, ns = await setup_server()
     printer_type = await crate_printer_type(server, ns)
     printer_nodes = await create_printers(server, ns, printer_type, n=printers)
@@ -226,7 +227,7 @@ async def server_read_benchmark(printers: int, n: int):
         timer.end()
 
 
-async def server_write_benchmark(printers: int, n: int):
+async def server_write_benchmark(printers: int, n: int) -> None:
     server, ns = await setup_server()
     printer_type = await crate_printer_type(server, ns)
     printer_nodes = await create_printers(server, ns, printer_type, n=printers)
@@ -243,7 +244,7 @@ async def server_write_benchmark(printers: int, n: int):
         timer.end()
 
 
-async def client_read_benchmark(printers: int, n: int):
+async def client_read_benchmark(printers: int, n: int) -> None:
     server, ns = await setup_server()
     printer_type = await crate_printer_type(server, ns)
     await create_printers(server, ns, printer_type, n=printers)
@@ -265,7 +266,7 @@ async def client_read_benchmark(printers: int, n: int):
         timer.end()
 
 
-async def client_write_benchmark(printers: int, n: int):
+async def client_write_benchmark(printers: int, n: int) -> None:
     server, ns = await setup_server()
     printer_type = await crate_printer_type(server, ns)
     await create_printers(server, ns, printer_type, n=printers)

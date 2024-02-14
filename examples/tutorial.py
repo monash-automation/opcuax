@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime
+from ipaddress import IPv4Address
 from typing import Annotated
 
 from opcuax import (
@@ -9,14 +10,14 @@ from opcuax import (
     OpcuaServer,
     OpcuaServerSettings,
 )
-from pydantic import BaseModel, Field, IPvAnyAddress, NonNegativeInt, PastDatetime
+from pydantic import BaseModel, Field, NonNegativeInt, PastDatetime
 
 LabPos = Annotated[float, Field(ge=-200, le=200, default=0)]
 UpdateTime = Annotated[datetime, PastDatetime()]
 
 
 class Trackable(OpcuaModel):
-    ip: IPvAnyAddress = "127.0.0.1"
+    ip: IPv4Address = IPv4Address("127.0.0.1")
     last_update: UpdateTime = Field(default_factory=datetime.now)
 
 

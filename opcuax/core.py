@@ -7,6 +7,7 @@ from typing import TypeVar
 from asyncua import Node
 from pydantic import BaseModel
 
+from .helper import field_class
 from .model import EnhancedModel, TBaseModel, TOpcuaModel, UpdateTask
 from .node import read_ua_variable
 
@@ -30,7 +31,7 @@ class Opcuax(ABC):
         self.objects = {}
         self.update_tasks = asyncio.Queue()
 
-    def create(self, cls: type[EnhancedModel], name: str) -> EnhancedModel:
+    async def create(self, name: str, model: TOpcuaModel) -> TOpcuaModel:
         raise NotImplementedError
 
     async def get_object(
@@ -44,7 +45,7 @@ class Opcuax(ABC):
 
             for field_name, field_info in cls.model_fields.items():
                 field_browse_name = f"{self.namespace}:{field_name}"
-                field_cls = field_info.annotation
+                field_cls = field_class(field_info)
 
                 child_node = await node.get_child(field_browse_name)
 
@@ -79,7 +80,7 @@ class Opcuax(ABC):
 
     async def update(self, name: str, model: TOpcuaModel) -> TOpcuaModel:
         enhanced = await self.get_object(type(model), name)
-        assert isinstance(enhanced, (EnhancedModel, type(model)))
+        assert isinstance(enhanced, EnhancedModel) and isinstance(enhanced, type(model))
         await enhanced.update_self(model)
         return enhanced
 

@@ -1,4 +1,3 @@
-import functools
 import random
 from time import time
 
@@ -43,21 +42,6 @@ def random_printer() -> Printer:
     )
 
 
-def timer(lib: str, api: str):
-    def decorator(func):
-        async def f(printers: int, n: int):
-            ts = time()
-            await func(printers, n)
-            te = time()
-            print(
-                "%s %s %d printer %d times %2.3f sec" % (lib, api, printers, n, te - ts)
-            )
-
-        return f
-
-    return decorator
-
-
 class Timer:
     _start: float
     lib: str
@@ -65,22 +49,18 @@ class Timer:
     printers: int
     n: int
 
-    def __init__(self, lib: str, api: str, printers: int, n: int):
+    def __init__(self, lib: str, api: str, printers: int, n: int) -> None:
         self.lib = lib
         self.api = api
         self.printers = printers
         self.n = n
 
-    def start(self):
+    def start(self) -> None:
         self._start = time()
 
-    def end(self):
+    def end(self) -> None:
         t = time() - self._start
         print(
             "%s %s %d printer %d times %2.3f sec"
             % (self.lib, self.api, self.printers, self.n, t)
         )
-
-
-OpcuaxTimer = functools.partial(Timer, "opcuax")
-AsyncuaTimer = functools.partial(Timer, "asyncua")
