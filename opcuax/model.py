@@ -11,7 +11,6 @@ from opcuax.node import read_ua_variable, write_ua_variable
 
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 TEnhancedModel = TypeVar("TEnhancedModel", bound="EnhancedModel")
-# UpdateTask = Awaitable[None]
 UpdateTask = Generator[Any, None, Never]
 
 
@@ -24,8 +23,6 @@ def parse_field_class(name: str, info: FieldInfo) -> type[Any]:
     return cls
 
 
-# represents an object in OPC UA, which will be converted to an object type
-# under base object types, and used to instantiate under Objects
 class OpcuaModel(BaseModel):
     @classmethod
     def __pydantic_init_subclass__(cls: type["OpcuaModel"], **kwargs: Any) -> None:
@@ -36,8 +33,6 @@ TOpcuaModel = TypeVar("TOpcuaModel", bound=OpcuaModel)
 OpcuaModelType = type[TOpcuaModel]
 
 
-# bind opc ua nodes on a pydantic model
-# must construct bottom up
 class EnhancedModel(BaseModel):
     classes: ClassVar[dict[type[BaseModel], type["EnhancedModel"]]] = {}
     origin: ClassVar[type[BaseModel]]
