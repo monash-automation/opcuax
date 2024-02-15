@@ -11,32 +11,10 @@ cd opcuax
 
 ### Setup Environment
 
-Create virtual environment
+Install [Poetry](https://python-poetry.org/docs/)
 
 ```shell
-python -m venv venv
-```
-
-Or if you have `virtualenv` installed (`pip install virtualenv`)
-
-```shell
-virtualenv venv
-```
-
-Activate virtual environment
-
-```shell
-# Mac or Linux
-source venv/bin/activate
-
-# Windows
-venv\Scripts\activate.bat
-```
-
-Install dependencies using [Poetry](https://python-poetry.org/docs/)
-
-```shell
-pip install poetry
+poetry shell
 poetry install
 ```
 
@@ -69,8 +47,7 @@ pytest tests/
 ### Static Checking
 
 ```shell
-pip install mypy
-mypy .
+mypy opcuax
 ```
 
 Please make sure all tests are passed before you commit
