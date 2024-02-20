@@ -63,7 +63,7 @@ class EnhancedModel(BaseModel):
 
     async def __update_variable(self, name: str, value: Any) -> None:
         if value is None:
-            raise ValueError("Cannot set OPC UA variable value to None")
+            raise ValueError(f"Cannot set None to {type(self).__name__}.{name}")
         self.__dict__[name] = value
         node = await self.__get_node(name)
         await write_ua_variable(node, value)
